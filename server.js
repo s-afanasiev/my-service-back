@@ -4,9 +4,10 @@ const sqlite3 = require("sqlite3").verbose();
 const { SqliteGuiNodeMiddleware } = require("sqlite-gui-node");
 
 const app = express();
-const PORT = 3000;
+const PORT = 3001;
 
 // База в папке проекта
+//test
 const db = new sqlite3.Database("./services.db");
 
 // Создаём таблицу services
