@@ -26,7 +26,7 @@ db.serialize(() => {
       price REAL NOT NULL
     )
   `);
-
+  /*
   db.run(
     "INSERT INTO services (name, price) VALUES (?, ?)",
     ["Ремонт холодильника", 1000],
@@ -34,6 +34,7 @@ db.serialize(() => {
       if (err && err.code !== "SQLITE_CONSTRAINT") console.log("Пример записи уже есть");
     }
   );
+  */
 });
 
 // 1. API для Astro (без пароля — только чтение для фронта)
