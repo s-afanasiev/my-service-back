@@ -2,14 +2,14 @@
 require("dotenv").config();
 
 const crypto = require("crypto");
-const path = require("path");
+const path   = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
 const sqlite3 = require("sqlite3").verbose();
 const databaseFunctions = require("sqlite-gui-node/dist/Utils/databaseFunctions").default;
-const tablesRouter = require("sqlite-gui-node/dist/routes/tables").default;
+const tablesRouter      = require("sqlite-gui-node/dist/routes/tables").default;
 
-const app = express();
+const app  = express();
 const PORT = 3001;
 
 const guiRoot = path.join(path.dirname(require.resolve("sqlite-gui-node/package.json")));
@@ -17,27 +17,42 @@ const guiRoot = path.join(path.dirname(require.resolve("sqlite-gui-node/package.
 // База в папке проекта
 const db = new sqlite3.Database("./services.db");
 
-// Создаём таблицу services
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS services (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      price REAL NOT NULL
+      id    INTEGER PRIMARY KEY AUTOINCREMENT,
+      name  TEXT    NOT NULL,
+      price REAL    NOT NULL
     )
   `);
-  /*
-  db.run(
-    "INSERT INTO services (name, price) VALUES (?, ?)",
-    ["Ремонт холодильника", 1000],
-    (err) => {
-      if (err && err.code !== "SQLITE_CONSTRAINT") console.log("Пример записи уже есть");
-    }
-  );
-  */
 });
 
-// 1. API для Astro (без пароля — только чтение для фронта)
+// ── Публичный фронт ──────────────────────────────────────────────────────────
+// Статика из public/ (CSS, картинки и т.д.) — без пароля
+app.use(express.static(path.join(__dirname, "public")));
+
+// Главная страница: рендер на сервере — список услуг уже в HTML (SEO-friendly)
+app.get("/", (req, res) => {
+  db.all("SELECT * FROM services ORDER BY id", (err, rows) => {
+    if (err) return res.status(500).send("Ошибка базы данных");
+    const money = new Intl.NumberFormat("ru-RU", {
+      style: "currency", currency: "RUB", maximumFractionDigits: 0,
+    });
+    const services = rows.map((s) => ({
+      ...s,
+      priceFormatted: money.format(s.price),
+    }));
+    res.render("main", {
+      title:      "Услуги по ремонту",
+      description:"Качественный ремонт бытовой техники — цены на все виды услуг",
+      heading:    "Услуги по ремонту",
+      subheading: "Качественный ремонт бытовой техники",
+      services,
+    });
+  });
+});
+
+// Публичный API: список услуг (для возможных будущих нужд)
 app.get("/api/services", (req, res) => {
   db.all("SELECT * FROM services", (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -45,6 +60,7 @@ app.get("/api/services", (req, res) => {
   });
 });
 
+// ── Утилиты Basic Auth ───────────────────────────────────────────────────────
 function timingSafeEqualString(a, b) {
   const bufA = Buffer.from(a, "utf8");
   const bufB = Buffer.from(b, "utf8");
@@ -52,29 +68,13 @@ function timingSafeEqualString(a, b) {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
-/** Маршруты sqlite-gui и его статики + API изменения БД */
-function isSqliteAdminPath(req) {
-  const p = req.path || "/";
-  if (p.startsWith("/api/tables")) return true;
-  if (p === "/" || p === "/admin" || p === "/home" || p === "/query" || p === "/createtable") return true;
-  if (p.startsWith("/insert/")) return true;
-  if (p.startsWith("/edit/")) return true;
-  if (p.startsWith("/stylesheets/") || p.startsWith("/javascripts/") || p.startsWith("/img/") || p.startsWith("/icons/"))
-    return true;
-  if (p === "/output.sql") return true;
-  return false;
-}
-
-function createBasicAuthMiddleware(username, password) {
+function basicAuth(username, password) {
   return (req, res, next) => {
-    if (!isSqliteAdminPath(req)) return next();
-
     const hdr = req.headers.authorization;
     if (!hdr || !hdr.startsWith("Basic ")) {
       res.setHeader("WWW-Authenticate", 'Basic realm="SQLite admin"');
       return res.status(401).send("Требуется авторизация");
     }
-
     let decoded;
     try {
       decoded = Buffer.from(hdr.slice(6), "base64").toString("utf8");
@@ -82,78 +82,86 @@ function createBasicAuthMiddleware(username, password) {
       res.setHeader("WWW-Authenticate", 'Basic realm="SQLite admin"');
       return res.status(401).send("Неверные учётные данные");
     }
-
     const colon = decoded.indexOf(":");
     if (colon === -1) {
       res.setHeader("WWW-Authenticate", 'Basic realm="SQLite admin"');
       return res.status(401).send("Неверные учётные данные");
     }
-
     const user = decoded.slice(0, colon);
     const pass = decoded.slice(colon + 1);
-
     if (timingSafeEqualString(user, username) && timingSafeEqualString(pass, password)) {
       return next();
     }
-
     res.setHeader("WWW-Authenticate", 'Basic realm="SQLite admin"');
     return res.status(401).send("Неверные учётные данные");
   };
 }
 
+// ── Запуск ───────────────────────────────────────────────────────────────────
 async function start() {
+  const adminUser     = process.env.ADMIN_USER || "admin";
   const adminPassword = process.env.ADMIN_PASSWORD;
-  const adminUser = process.env.ADMIN_USER || "admin";
+
+  // EJS нужен и без пароля — для главной страницы
+  app.set("view engine", "ejs");
+  app.set("views", path.join(__dirname, "views"));
 
   if (!adminPassword) {
-    console.warn(
-      "[sqlite-gui] ADMIN_PASSWORD не задан — GUI и /api/tables не подключены. Задайте переменные в .env (см. .env.example)."
-    );
+    console.warn("[admin] ADMIN_PASSWORD не задан — GUI не подключён (см. .env.example).");
     app.listen(PORT, () => {
-      console.log(`Express запущен на http://localhost:${PORT}`);
-      console.log(`- API: http://localhost:${PORT}/api/services`);
+      console.log(`Express: http://localhost:${PORT}`);
+      console.log(`  Сайт:  http://localhost:${PORT}/`);
+      console.log(`  API:   http://localhost:${PORT}/api/services`);
     });
     return;
   }
 
   await databaseFunctions.InitializeDB(db);
 
-  app.use(createBasicAuthMiddleware(adminUser, adminPassword));
+  const auth = basicAuth(adminUser, adminPassword);
 
-  app.set("view engine", "ejs");
-  app.set("views", path.join(guiRoot, "views"));
+  // Статика sqlite-gui (/stylesheets/, /javascripts/, /icons/, /img/) — за паролем
+  const guiStatic = express.static(path.join(guiRoot, "public"));
+  app.use((req, res, next) => {
+    const p = req.path;
+    if (
+      p.startsWith("/stylesheets/") ||
+      p.startsWith("/javascripts/") ||
+      p.startsWith("/icons/") ||
+      p.startsWith("/img/")
+    ) {
+      return auth(req, res, () => guiStatic(req, res, next));
+    }
+    next();
+  });
+
+  // Расширяем views: теперь и наши шаблоны, и sqlite-gui
+  app.set("views", [
+    path.join(__dirname, "views"),
+    path.join(guiRoot, "views"),
+  ]);
   app.use(bodyParser.urlencoded({ extended: false }));
   app.use(bodyParser.json());
-  app.use(express.static(path.join(guiRoot, "public")));
 
-  app.get("/admin", (req, res) => {
-    res.redirect(302, "/home");
-  });
+  // Все маршруты админки — за паролем
+  app.get("/home",              auth, (req, res) => res.render("index",       { title: "Admin" }));
+  app.get("/query",             auth, (req, res) => res.render("query",       { title: "Query" }));
+  app.get("/createtable",       auth, (req, res) => res.render("createTable", { title: "Create Table" }));
+  app.get("/insert/:table",     auth, (req, res) => res.render("insert",      { tableName: req.params.table }));
+  app.get("/edit/:table/:label/:id", auth, (req, res) =>
+    res.render("edit", { tableName: req.params.table, id: req.params.id })
+  );
+  app.use("/api/tables", auth, tablesRouter(db));
 
-  app.get("/query", (req, res) => {
-    res.render("query", { title: "Query Page" });
+  app.get("/output.sql", auth, (req, res) => {
+    res.sendFile(path.join(guiRoot, "public", "output.sql"));
   });
-  app.get("/", (req, res) => {
-    res.render("index", { title: "Home Page" });
-  });
-  app.get("/home", (req, res) => {
-    res.render("index", { title: "Home Page" });
-  });
-  app.get("/createtable", (req, res) => {
-    res.render("createTable", { title: "Create Table Page" });
-  });
-  app.get("/insert/:table", (req, res) => {
-    res.render("insert", { tableName: req.params.table });
-  });
-  app.get("/edit/:table/:label/:id", (req, res) => {
-    res.render("edit", { tableName: req.params.table, id: req.params.id });
-  });
-  app.use("/api/tables", tablesRouter(db));
 
   app.listen(PORT, () => {
-    console.log(`Express запущен на http://localhost:${PORT}`);
-    console.log(`- API: http://localhost:${PORT}/api/services`);
-    console.log(`- Админка (Basic Auth): http://localhost:${PORT}/admin → /home`);
+    console.log(`Express: http://localhost:${PORT}`);
+    console.log(`  Сайт:    http://localhost:${PORT}/`);
+    console.log(`  API:     http://localhost:${PORT}/api/services`);
+    console.log(`  Админка: http://localhost:${PORT}/home  (Basic Auth)`);
   });
 }
 
