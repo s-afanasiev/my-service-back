@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Редактирование</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f1f5f9; color: #1e293b; padding: 2rem 1rem; }
+    h1   { font-size: 1.2rem; margin-bottom: 1.5rem; }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.07);
+      padding: 1.5rem;
+      max-width: 480px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: .3rem; margin-bottom: 1rem; }
+    label  { font-size: .85rem; font-weight: 600; }
+    input  { padding: .5rem .7rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: .95rem; }
+    input:focus { outline: 2px solid #2563eb; border-color: transparent; }
+    input[type="color"] { padding: .15rem .3rem; width: 60px; height: 36px; cursor: pointer; }
+
+    .actions { display: flex; gap: .6rem; margin-top: 1.25rem; }
+    button[type="submit"] {
+      background: #2563eb; color: #fff;
+      border: none; border-radius: 6px;
+      padding: .5rem 1.2rem; font-size: .95rem; cursor: pointer;
+    }
+    button[type="submit"]:hover { background: #1d4ed8; }
+    a.cancel {
+      display: inline-flex; align-items: center;
+      color: #64748b; font-size: .9rem; text-decoration: none;
+      padding: .5rem .75rem; border-radius: 6px;
+    }
+    a.cancel:hover { background: #f1f5f9; }
+  </style>
+</head>
+<body>
+
+<h1>Редактирование: <%= title %></h1>
+
+<div class="card">
+  <form method="POST" action="<%= action %>">
+
+    <% fields.forEach(function(f) { %>
+      <div class="field">
+        <label for="<%= f.name %>"><%= f.label %></label>
+        <% if (f.type === 'color') { %>
+          <input id="<%= f.name %>" type="color" name="<%= f.name %>" value="<%= f.value %>" />
+        <% } else { %>
+          <input id="<%= f.name %>" type="<%= f.type %>" name="<%= f.name %>"
+                 value="<%= f.value %>"
+                 <% if (f.step)        { %>step="<%= f.step %>"<% } %>
+                 <% if (f.min != null) { %>min="<%= f.min %>"<% } %>
+                 required />
+        <% } %>
+      </div>
+    <% }); %>
+
+    <div class="actions">
+      <button type="submit">Сохранить</button>
+      <a class="cancel" href="/home">← Отмена</a>
+    </div>
+  </form>
+</div>
+
+</body>
+</html>

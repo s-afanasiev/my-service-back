@@ -113,7 +113,52 @@ if (!adminPass) {
 
   app.get("/home", auth, renderAdmin);
 
-  // Услуги
+  // Услуги — редактирование
+  app.get("/admin/services/:id/edit", auth, (req, res) => {
+    db.get("SELECT * FROM services WHERE id = ?", [req.params.id], (err, s) => {
+      if (err || !s) return res.redirect("/home");
+      res.render("edit", {
+        title:  "Услуга",
+        action: `/admin/services/${s.id}/edit`,
+        fields: [
+          { name: "name",  label: "Название", type: "text",   value: s.name },
+          { name: "price", label: "Цена (₽)", type: "number", value: s.price, step: "0.01", min: 0 },
+        ],
+      });
+    });
+  });
+
+  app.post("/admin/services/:id/edit", auth, (req, res) => {
+    const { name, price } = req.body;
+    if (!name || !price) return res.redirect("/home");
+    db.run("UPDATE services SET name = ?, price = ? WHERE id = ?",
+      [name.trim(), parseFloat(price), req.params.id], () => res.redirect("/home"));
+  });
+
+  // Контакты — редактирование
+  app.get("/admin/contacts/:id/edit", auth, (req, res) => {
+    db.get("SELECT * FROM contacts WHERE id = ?", [req.params.id], (err, c) => {
+      if (err || !c) return res.redirect("/home");
+      res.render("edit", {
+        title:  "Контакт",
+        action: `/admin/contacts/${c.id}/edit`,
+        fields: [
+          { name: "type",  label: "Подпись",   type: "text",  value: c.type },
+          { name: "url",   label: "Ссылка",    type: "text",  value: c.url },
+          { name: "color", label: "Цвет фона", type: "color", value: c.color },
+        ],
+      });
+    });
+  });
+
+  app.post("/admin/contacts/:id/edit", auth, (req, res) => {
+    const { type, url, color } = req.body;
+    if (!type || !url) return res.redirect("/home");
+    db.run("UPDATE contacts SET type = ?, url = ?, color = ? WHERE id = ?",
+      [type.trim(), url.trim(), (color || "#2563eb").trim(), req.params.id], () => res.redirect("/home"));
+  });
+
+  // Услуги — добавление
   app.post("/admin/services/add", auth, (req, res) => {
     const { name, price } = req.body;
     if (!name || !price) return res.redirect("/home");

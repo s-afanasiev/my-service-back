@@ -41,6 +41,8 @@
     }
     .btn-delete { background: #fee2e2; color: #dc2626; }
     .btn-delete:hover { background: #fecaca; }
+    .btn-edit { background: #e0f2fe; color: #0369a1; text-decoration: none; padding: .3rem .75rem; border-radius: 6px; font-size: .85rem; }
+    .btn-edit:hover { background: #bae6fd; }
 
     .add-form { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-end; }
     .add-form label { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; font-weight: 500; }
@@ -71,7 +73,8 @@
             <td><%= s.id %></td>
             <td><%= s.name %></td>
             <td><%= s.price %></td>
-            <td>
+            <td style="display:flex;gap:.4rem;align-items:center">
+              <a class="btn-edit" href="/admin/services/<%= s.id %>/edit">Изменить</a>
               <form class="inline" method="POST" action="/admin/services/<%= s.id %>/delete">
                 <button class="btn-delete" onclick="return confirm('Удалить «<%= s.name %>»?')">Удалить</button>
               </form>
@@ -105,7 +108,8 @@
             <td><%= c.type %></td>
             <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= c.url %></td>
             <td><span class="color-dot" style="background:<%= c.color %>"></span><%= c.color %></td>
-            <td>
+            <td style="display:flex;gap:.4rem;align-items:center">
+              <a class="btn-edit" href="/admin/contacts/<%= c.id %>/edit">Изменить</a>
               <form class="inline" method="POST" action="/admin/contacts/<%= c.id %>/delete">
                 <button class="btn-delete" onclick="return confirm('Удалить «<%= c.type %>»?')">Удалить</button>
               </form>
