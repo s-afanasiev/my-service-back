@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Панель управления</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f1f5f9; color: #1e293b; padding: 2rem 1rem; }
+    h1   { font-size: 1.4rem; margin-bottom: 2rem; }
+    h2   { font-size: 1.1rem; margin-bottom: 1rem; color: #334155; }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.07);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1.25rem; }
+    th, td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid #e2e8f0; font-size: .9rem; }
+    th { background: #f8fafc; font-weight: 600; }
+
+    .color-dot {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      border: 1px solid #cbd5e1;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    form.inline { display: inline; }
+    button {
+      padding: .3rem .75rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: .85rem;
+    }
+    .btn-delete { background: #fee2e2; color: #dc2626; }
+    .btn-delete:hover { background: #fecaca; }
+
+    .add-form { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-end; }
+    .add-form label { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; font-weight: 500; }
+    .add-form input { padding: .4rem .6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: .9rem; width: 100%; }
+    .add-form input[type="color"] { padding: .15rem .3rem; width: 60px; height: 34px; cursor: pointer; }
+    .btn-add { background: #2563eb; color: #fff; padding: .45rem 1rem; align-self: flex-end; }
+    .btn-add:hover { background: #1d4ed8; }
+
+    .empty { color: #94a3b8; font-size: .9rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+
+<h1>Панель управления</h1>
+
+<!-- ── Услуги ── -->
+<div class="card">
+  <h2>Услуги</h2>
+
+  <% if (services.length === 0) { %>
+    <p class="empty">Нет услуг. Добавьте первую.</p>
+  <% } else { %>
+    <table>
+      <thead><tr><th>#</th><th>Название</th><th>Цена, ₽</th><th></th></tr></thead>
+      <tbody>
+        <% services.forEach(function(s) { %>
+          <tr>
+            <td><%= s.id %></td>
+            <td><%= s.name %></td>
+            <td><%= s.price %></td>
+            <td>
+              <form class="inline" method="POST" action="/admin/services/<%= s.id %>/delete">
+                <button class="btn-delete" onclick="return confirm('Удалить «<%= s.name %>»?')">Удалить</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+
+  <form method="POST" action="/admin/services/add" class="add-form">
+    <label>Название<input name="name" placeholder="Ремонт холодильника" required /></label>
+    <label>Цена (₽)<input name="price" type="number" min="0" step="0.01" placeholder="1000" required style="width:120px" /></label>
+    <button class="btn-add" type="submit">+ Добавить</button>
+  </form>
+</div>
+
+<!-- ── Контакты ── -->
+<div class="card">
+  <h2>Кнопки контактов</h2>
+
+  <% if (contacts.length === 0) { %>
+    <p class="empty">Нет контактов. Добавьте первый.</p>
+  <% } else { %>
+    <table>
+      <thead><tr><th>#</th><th>Подпись</th><th>Ссылка</th><th>Цвет</th><th></th></tr></thead>
+      <tbody>
+        <% contacts.forEach(function(c) { %>
+          <tr>
+            <td><%= c.id %></td>
+            <td><%= c.type %></td>
+            <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= c.url %></td>
+            <td><span class="color-dot" style="background:<%= c.color %>"></span><%= c.color %></td>
+            <td>
+              <form class="inline" method="POST" action="/admin/contacts/<%= c.id %>/delete">
+                <button class="btn-delete" onclick="return confirm('Удалить «<%= c.type %>»?')">Удалить</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+
+  <form method="POST" action="/admin/contacts/add" class="add-form">
+    <label>Подпись<input name="type" placeholder="📞 Позвонить" required /></label>
+    <label>Ссылка<input name="url" placeholder="tel:+79001234567" required style="width:200px" /></label>
+    <label>Цвет фона<input name="color" type="color" value="#2563eb" /></label>
+    <button class="btn-add" type="submit">+ Добавить</button>
+  </form>
+</div>
+
+</body>
+</html>
