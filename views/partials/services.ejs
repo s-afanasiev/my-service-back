@@ -1,0 +1,14 @@
+<section class="section" aria-label="Список услуг">
+  <% if (services.length === 0) { %>
+    <div class="empty-state">Услуги пока не добавлены.</div>
+  <% } else { %>
+    <ul class="services">
+      <% services.forEach(function(s) { %>
+        <li class="service-card">
+          <span class="service-name"><%- s.name %></span>
+          <span class="service-price"><%= s.priceFormatted %></span>
+        </li>
+      <% }); %>
+    </ul>
+  <% } %>
+</section>
