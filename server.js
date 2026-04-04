@@ -21,33 +21,64 @@ db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS services (
       id    INTEGER PRIMARY KEY AUTOINCREMENT,
-      name  TEXT    NOT NULL,
-      price REAL    NOT NULL
+      name  TEXT NOT NULL,
+      price REAL NOT NULL
+    )
+  `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS contacts (
+      id    INTEGER PRIMARY KEY AUTOINCREMENT,
+      type  TEXT NOT NULL,
+      url   TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#2563eb'
     )
   `);
 });
+
+/** Определяет цвет текста (белый/тёмный) по яркости фона hex-цвета */
+function textColorFor(hex) {
+  const c = hex.replace("#", "");
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.55 ? "#1e293b" : "#ffffff";
+}
 
 // ── Публичный фронт ──────────────────────────────────────────────────────────
 // Статика из public/ (CSS, картинки и т.д.) — без пароля
 app.use(express.static(path.join(__dirname, "public")));
 
-// Главная страница: рендер на сервере — список услуг уже в HTML (SEO-friendly)
+// Главная страница: рендер на сервере — данные уже в HTML (SEO-friendly)
 app.get("/", (req, res) => {
-  db.all("SELECT * FROM services ORDER BY id", (err, rows) => {
-    if (err) return res.status(500).send("Ошибка базы данных");
-    const money = new Intl.NumberFormat("ru-RU", {
-      style: "currency", currency: "RUB", maximumFractionDigits: 0,
-    });
-    const services = rows.map((s) => ({
-      ...s,
-      priceFormatted: money.format(s.price),
-    }));
-    res.render("main", {
-      title:      "Услуги по ремонту",
-      description:"Качественный ремонт бытовой техники — цены на все виды услуг",
-      heading:    "Услуги по ремонту",
-      subheading: "Качественный ремонт бытовой техники",
-      services,
+  const money = new Intl.NumberFormat("ru-RU", {
+    style: "currency", currency: "RUB", maximumFractionDigits: 0,
+  });
+
+  db.all("SELECT * FROM services ORDER BY id", (errS, serviceRows) => {
+    if (errS) return res.status(500).send("Ошибка базы данных");
+
+    db.all("SELECT * FROM contacts ORDER BY id", (errC, contactRows) => {
+      if (errC) return res.status(500).send("Ошибка базы данных");
+
+      const services = serviceRows.map((s) => ({
+        ...s,
+        priceFormatted: money.format(s.price),
+      }));
+
+      const contacts = contactRows.map((c) => ({
+        ...c,
+        textColor: textColorFor(c.color),
+      }));
+
+      res.render("main", {
+        title:      "Услуги по ремонту",
+        description:"Качественный ремонт бытовой техники — цены на все виды услуг",
+        heading:    "Услуги по ремонту",
+        subheading: "Быстро, качественно, с гарантией. Выезд мастера в день обращения.",
+        services,
+        contacts,
+      });
     });
   });
 });

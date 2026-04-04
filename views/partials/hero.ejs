@@ -1,20 +1,17 @@
 <header class="site-header">
   <h1><%= heading %></h1>
-  <p class="lead">
-    Быстро, качественно, с гарантией. Выезд мастера в день обращения.
-    Работаем без выходных.
-  </p>
+  <p class="lead"><%= subheading %></p>
 
-  <nav class="contacts" aria-label="Контакты">
-    <%# Замените номер, ссылки и никнеймы на свои %>
-    <a class="btn btn-phone" href="tel:+79001234567">
-      📞 +7 (900) 123-45-67
-    </a>
-    <a class="btn btn-wa" href="https://max.ru/u/f9LHodD0cOJFJE5pyhLChHrBU8bgogSkuZXbiyV9194rmT5itWuss_jvWCE" target="_blank" rel="noopener">
-      Max
-    </a>
-    <a class="btn btn-tg" href="https://t.me/your_username" target="_blank" rel="noopener">
-      Telegram
-    </a>
-  </nav>
+  <% if (contacts.length > 0) { %>
+    <nav class="contacts" aria-label="Контакты">
+      <% contacts.forEach(function(c) { %>
+        <a class="btn"
+           href="<%= c.url %>"
+           style="background: <%= c.color %>; color: <%= c.textColor %>;"
+           <% if (!c.url.startsWith('tel:')) { %>target="_blank" rel="noopener"<% } %>>
+          <%= c.type %>
+        </a>
+      <% }); %>
+    </nav>
+  <% } %>
 </header>
