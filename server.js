@@ -3,34 +3,32 @@ require("dotenv").config();
 const crypto  = require("crypto");
 const path    = require("path");
 const express = require("express");
-const mysql   = require("mysql2/promise");
+const { Pool } = require("pg");
 
 const app  = express();
 const PORT = 3001;
 
-// ── Пул соединений MySQL ──────────────────────────────────────────────────────
-const pool = mysql.createPool({
+// ── Пул соединений PostgreSQL ─────────────────────────────────────────────────
+const pool = new Pool({
   host:     process.env.DB_HOST     || "localhost",
-  port:     process.env.DB_PORT     || 3306,
-  user:     process.env.DB_USER     || "root",
+  port:     process.env.DB_PORT     || 5432,
+  user:     process.env.DB_USER     || "mysite_user",
   password: process.env.DB_PASSWORD || "",
   database: process.env.DB_NAME     || "mysite",
-  waitForConnections: true,
-  connectionLimit:    10,
 });
 
 // ── Создание таблиц при первом запуске ────────────────────────────────────────
 async function initDB() {
   await pool.query(`CREATE TABLE IF NOT EXISTS services (
-    id    INT AUTO_INCREMENT PRIMARY KEY,
-    name  VARCHAR(255) NOT NULL,
-    price DECIMAL(10,2) NOT NULL
+    id    SERIAL PRIMARY KEY,
+    name  VARCHAR(255)   NOT NULL,
+    price DECIMAL(10,2)  NOT NULL
   )`);
   await pool.query(`CREATE TABLE IF NOT EXISTS contacts (
-    id    INT AUTO_INCREMENT PRIMARY KEY,
-    type  VARCHAR(255) NOT NULL,
+    id    SERIAL PRIMARY KEY,
+    type  VARCHAR(255)  NOT NULL,
     url   VARCHAR(2048) NOT NULL,
-    color VARCHAR(7) NOT NULL DEFAULT '#2563eb'
+    color VARCHAR(7)    NOT NULL DEFAULT '#2563eb'
   )`);
 }
 
@@ -80,8 +78,8 @@ const money = new Intl.NumberFormat("ru-RU", {
 
 app.get("/", async (req, res) => {
   try {
-    const [services] = await pool.query("SELECT * FROM services ORDER BY id");
-    const [contacts] = await pool.query("SELECT * FROM contacts ORDER BY id");
+    const { rows: services } = await pool.query("SELECT * FROM services ORDER BY id");
+    const { rows: contacts } = await pool.query("SELECT * FROM contacts ORDER BY id");
     res.render("main", {
       title:       "Услуги по ремонту",
       description: "Качественный ремонт бытовой техники — цены на все виды услуг",
@@ -98,14 +96,14 @@ app.get("/", async (req, res) => {
 
 app.get("/api/services", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM services");
+    const { rows } = await pool.query("SELECT * FROM services");
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ── Панель управления (только если задан пароль) ──────────────────────────────
+// ── Панель управления ─────────────────────────────────────────────────────────
 const adminUser = process.env.ADMIN_USER     || "admin";
 const adminPass = process.env.ADMIN_PASSWORD || "";
 
@@ -116,8 +114,8 @@ if (!adminPass) {
 
   async function renderAdmin(req, res) {
     try {
-      const [services] = await pool.query("SELECT * FROM services ORDER BY id");
-      const [contacts] = await pool.query("SELECT * FROM contacts ORDER BY id");
+      const { rows: services } = await pool.query("SELECT * FROM services ORDER BY id");
+      const { rows: contacts } = await pool.query("SELECT * FROM contacts ORDER BY id");
       res.render("admin", { services, contacts });
     } catch (err) {
       res.status(500).send("Ошибка");
@@ -128,8 +126,9 @@ if (!adminPass) {
 
   // Услуги — редактирование
   app.get("/admin/services/:id/edit", auth, async (req, res) => {
-    const [[s]] = await pool.query("SELECT * FROM services WHERE id = ?", [req.params.id]);
-    if (!s) return res.redirect("/home");
+    const { rows } = await pool.query("SELECT * FROM services WHERE id = $1", [req.params.id]);
+    if (!rows[0]) return res.redirect("/home");
+    const s = rows[0];
     res.render("edit", {
       title:  "Услуга",
       action: `/admin/services/${s.id}/edit`,
@@ -143,15 +142,16 @@ if (!adminPass) {
   app.post("/admin/services/:id/edit", auth, async (req, res) => {
     const { name, price } = req.body;
     if (!name || !price) return res.redirect("/home");
-    await pool.query("UPDATE services SET name = ?, price = ? WHERE id = ?",
+    await pool.query("UPDATE services SET name = $1, price = $2 WHERE id = $3",
       [name.trim(), parseFloat(price), req.params.id]);
     res.redirect("/home");
   });
 
   // Контакты — редактирование
   app.get("/admin/contacts/:id/edit", auth, async (req, res) => {
-    const [[c]] = await pool.query("SELECT * FROM contacts WHERE id = ?", [req.params.id]);
-    if (!c) return res.redirect("/home");
+    const { rows } = await pool.query("SELECT * FROM contacts WHERE id = $1", [req.params.id]);
+    if (!rows[0]) return res.redirect("/home");
+    const c = rows[0];
     res.render("edit", {
       title:  "Контакт",
       action: `/admin/contacts/${c.id}/edit`,
@@ -166,7 +166,7 @@ if (!adminPass) {
   app.post("/admin/contacts/:id/edit", auth, async (req, res) => {
     const { type, url, color } = req.body;
     if (!type || !url) return res.redirect("/home");
-    await pool.query("UPDATE contacts SET type = ?, url = ?, color = ? WHERE id = ?",
+    await pool.query("UPDATE contacts SET type = $1, url = $2, color = $3 WHERE id = $4",
       [type.trim(), url.trim(), (color || "#2563eb").trim(), req.params.id]);
     res.redirect("/home");
   });
@@ -175,13 +175,13 @@ if (!adminPass) {
   app.post("/admin/services/add", auth, async (req, res) => {
     const { name, price } = req.body;
     if (!name || !price) return res.redirect("/home");
-    await pool.query("INSERT INTO services (name, price) VALUES (?, ?)",
+    await pool.query("INSERT INTO services (name, price) VALUES ($1, $2)",
       [name.trim(), parseFloat(price)]);
     res.redirect("/home");
   });
 
   app.post("/admin/services/:id/delete", auth, async (req, res) => {
-    await pool.query("DELETE FROM services WHERE id = ?", [req.params.id]);
+    await pool.query("DELETE FROM services WHERE id = $1", [req.params.id]);
     res.redirect("/home");
   });
 
@@ -189,13 +189,13 @@ if (!adminPass) {
   app.post("/admin/contacts/add", auth, async (req, res) => {
     const { type, url, color } = req.body;
     if (!type || !url) return res.redirect("/home");
-    await pool.query("INSERT INTO contacts (type, url, color) VALUES (?, ?, ?)",
+    await pool.query("INSERT INTO contacts (type, url, color) VALUES ($1, $2, $3)",
       [type.trim(), url.trim(), (color || "#2563eb").trim()]);
     res.redirect("/home");
   });
 
   app.post("/admin/contacts/:id/delete", auth, async (req, res) => {
-    await pool.query("DELETE FROM contacts WHERE id = ?", [req.params.id]);
+    await pool.query("DELETE FROM contacts WHERE id = $1", [req.params.id]);
     res.redirect("/home");
   });
 }
