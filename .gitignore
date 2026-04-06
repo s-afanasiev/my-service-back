@@ -1,3 +1,4 @@
 services.db
 node_modules/
 .env
+public/

@@ -58,6 +58,28 @@
 
 <h1>Панель управления</h1>
 
+<!-- ── Фото шапки ── -->
+<div class="card">
+  <h2>Фото шапки</h2>
+
+  <% if (hasHero) { %>
+    <div style="margin-bottom:1rem">
+      <img src="/hero-bg.jpg" alt="Текущее фото"
+           style="max-width:100%;max-height:160px;object-fit:cover;border-radius:8px;display:block;margin-bottom:.75rem" />
+      <form class="inline" method="POST" action="/admin/hero-delete">
+        <button class="btn-delete" onclick="return confirm('Удалить фото шапки?')">Удалить фото</button>
+      </form>
+    </div>
+  <% } else { %>
+    <p class="empty" style="margin-bottom:.75rem">Фото не загружено — шапка показывается синим цветом.</p>
+  <% } %>
+
+  <form method="POST" action="/admin/hero-upload" enctype="multipart/form-data" class="add-form">
+    <label><%= hasHero ? 'Заменить фото' : 'Загрузить фото' %><input name="hero" type="file" accept="image/*" required style="padding:.3rem 0;border:none" /></label>
+    <button class="btn-add" type="submit">Загрузить</button>
+  </form>
+</div>
+
 <!-- ── Услуги ── -->
 <div class="card">
   <h2>Услуги</h2>

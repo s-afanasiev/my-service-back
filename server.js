@@ -1,8 +1,10 @@
 require("dotenv").config();
 
 const crypto  = require("crypto");
+const fs      = require("fs");
 const path    = require("path");
 const express = require("express");
+const multer  = require("multer");
 const { Pool } = require("pg");
 
 const app  = express();
@@ -65,6 +67,21 @@ function basicAuth(user, pass) {
   };
 }
 
+// ── Загрузка файлов (multer) ──────────────────────────────────────────────────
+const heroPath = path.join(__dirname, "public", "hero-bg.jpg");
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, path.join(__dirname, "public")),
+    filename:    (req, file, cb) => cb(null, "hero-bg.jpg"),
+  }),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error("Только изображения (jpg, png, webp, gif)"));
+  },
+});
+
 // ── Express настройки ─────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: false }));
@@ -81,10 +98,10 @@ app.get("/", async (req, res) => {
     const { rows: services } = await pool.query("SELECT * FROM services ORDER BY id");
     const { rows: contacts } = await pool.query("SELECT * FROM contacts ORDER BY id");
     res.render("main", {
-      title:       "Услуги по ремонту",
-      description: "Качественный ремонт бытовой техники — цены на все виды услуг",
+      title:       `ремонт оргтехники "Заправка-Курск"`,
+      description: "Профессиональный ремонт оргтехники — все виды услуг",
       heading:     "Услуги по ремонту",
-      subheading:  "Быстро, качественно, с гарантией. Выезд мастера в день обращения.",
+      subheading:  "Быстро, качественно, с гарантией. \n Выезд мастера в день обращения.",
       services:    services.map(s => ({ ...s, priceFormatted: money.format(s.price) })),
       contacts:    contacts.map(c => ({ ...c, textColor: textColorFor(c.color) })),
     });
@@ -116,7 +133,8 @@ if (!adminPass) {
     try {
       const { rows: services } = await pool.query("SELECT * FROM services ORDER BY id");
       const { rows: contacts } = await pool.query("SELECT * FROM contacts ORDER BY id");
-      res.render("admin", { services, contacts });
+      const hasHero = fs.existsSync(heroPath);
+      res.render("admin", { services, contacts, hasHero });
     } catch (err) {
       res.status(500).send("Ошибка");
     }
@@ -168,6 +186,16 @@ if (!adminPass) {
     if (!type || !url) return res.redirect("/home");
     await pool.query("UPDATE contacts SET type = $1, url = $2, color = $3 WHERE id = $4",
       [type.trim(), url.trim(), (color || "#2563eb").trim(), req.params.id]);
+    res.redirect("/home");
+  });
+
+  // Фото шапки — загрузка и удаление
+  app.post("/admin/hero-upload", auth, upload.single("hero"), (req, res) => {
+    res.redirect("/home");
+  });
+
+  app.post("/admin/hero-delete", auth, (req, res) => {
+    if (fs.existsSync(heroPath)) fs.unlinkSync(heroPath);
     res.redirect("/home");
   });
 
