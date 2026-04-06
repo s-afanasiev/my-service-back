@@ -9,7 +9,7 @@
         <a class="btn"
            href="<%= c.url %>"
            style="background: <%= c.color %>; color: <%= c.textColor %>;"
-           <% if (!c.url.startsWith('tel:')) { %>target="_blank" rel="noopener"<% } %>>
+           <% if (!c.url.startsWith('tel:') && !c.url.startsWith('mailto:')) { %>target="_blank" rel="noopener"<% } %>>
           <%= c.type %>
         </a>
       <% }); %>

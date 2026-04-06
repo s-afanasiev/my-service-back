@@ -142,13 +142,75 @@
     </table>
   <% } %>
 
-  <form method="POST" action="/admin/contacts/add" class="add-form">
-    <label>Подпись<input name="type" placeholder="📞 Позвонить" required /></label>
-    <label>Ссылка<input name="url" placeholder="tel:+79001234567" required style="width:200px" /></label>
+  <form method="POST" action="/admin/contacts/add" class="add-form" id="contact-form"
+        onsubmit="return buildContactUrl()">
+
+    <label>Тип
+      <select id="kind" onchange="onKindChange()" style="padding:.4rem .6rem;border:1px solid #cbd5e1;border-radius:6px;font-size:.9rem">
+        <option value="phone">📞 Телефон</option>
+        <option value="email">✉️ Email</option>
+        <option value="telegram">✈️ Telegram</option>
+        <option value="whatsapp">💬 WhatsApp</option>
+        <option value="site">🌐 Сайт</option>
+        <option value="other">🔗 Другое</option>
+      </select>
+    </label>
+
+    <label>Подпись
+      <input name="type" id="contact-label" value="📞 Позвонить" required />
+    </label>
+
+    <label id="value-wrap">Номер телефона
+      <input id="contact-value" placeholder="+7 900 123-45-67" required style="width:180px" />
+    </label>
+
+    <input name="url" id="contact-url" type="hidden" />
+
     <label>Цвет фона<input name="color" type="color" value="#2563eb" /></label>
     <button class="btn-add" type="submit">+ Добавить</button>
   </form>
 </div>
+
+<script>
+const KINDS = {
+  phone:    { label: '📞 Позвонить', field: 'Номер телефона', placeholder: '+7 900 123-45-67' },
+  email:    { label: '✉️ Email',     field: 'Email адрес',    placeholder: 'zapravka@mail.ru' },
+  telegram: { label: '✈️ Telegram',  field: 'Username',       placeholder: 'username (без @)' },
+  whatsapp: { label: '💬 WhatsApp',  field: 'Номер телефона', placeholder: '79001234567'       },
+  site:     { label: '🌐 Сайт',      field: 'Адрес сайта',   placeholder: 'example.com'       },
+  other:    { label: '',             field: 'Ссылка',         placeholder: 'https://...'       },
+};
+
+function onKindChange() {
+  const k = document.getElementById('kind').value;
+  const info = KINDS[k];
+  document.getElementById('contact-label').value      = info.label;
+  document.getElementById('contact-value').placeholder = info.placeholder;
+  document.getElementById('value-wrap').childNodes[0].textContent = info.field;
+}
+
+function buildContactUrl() {
+  const kind  = document.getElementById('kind').value;
+  const raw   = document.getElementById('contact-value').value.trim();
+  let url = raw;
+
+  if (kind === 'phone') {
+    const digits = raw.replace(/[^\d+]/g, '');
+    url = 'tel:' + (digits.startsWith('+') ? digits : '+7' + digits.replace(/^[87]/, ''));
+  } else if (kind === 'email') {
+    url = raw.startsWith('mailto:') ? raw : 'mailto:' + raw;
+  } else if (kind === 'telegram') {
+    url = 'https://t.me/' + raw.replace(/^@/, '');
+  } else if (kind === 'whatsapp') {
+    url = 'https://wa.me/' + raw.replace(/[^\d]/g, '');
+  } else if (kind === 'site') {
+    url = /^https?:\/\//.test(raw) ? raw : 'https://' + raw;
+  }
+
+  document.getElementById('contact-url').value = url;
+  return true;
+}
+</script>
 
 </body>
 </html>
