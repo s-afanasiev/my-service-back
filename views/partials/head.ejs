@@ -1,7 +1,32 @@
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title><%= title %></title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<!-- ── Основные SEO-теги ── -->
+<title><%= siteName ? siteName + ' | ' : '' %><%= title %></title>
 <meta name="description" content="<%= description %>" />
+<% if (siteUrl) { %><link rel="canonical" href="<%= siteUrl %>/" /><% } %>
+
+<!-- ── Open Graph (Facebook, VK, Telegram-превью) ── -->
+<meta property="og:type"        content="website" />
+<meta property="og:title"       content="<%= siteName ? siteName + ' | ' : '' %><%= title %>" />
+<meta property="og:description" content="<%= description %>" />
+<% if (siteUrl) { %><meta property="og:url" content="<%= siteUrl %>/" /><% } %>
+<% if (ogImage) { %><meta property="og:image" content="<%= ogImage %>" /><% } %>
+<meta property="og:locale"      content="ru_RU" />
+
+<!-- ── JSON-LD: LocalBusiness (понятная разметка для Google) ── -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "<%= siteName || heading %>",
+  "description": "<%= description %>",
+  "url": "<%= siteUrl || '' %>",
+  "inLanguage": "ru"<% if (ogImage) { %>,
+  "image": "<%= ogImage %>"<% } %>
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -63,6 +88,14 @@
   /* Все дочерние элементы шапки поверх оверлея */
   .site-header > * { position: relative; z-index: 1; }
 
+  .company-name {
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    opacity: .75;
+    margin-bottom: .5rem;
+  }
   .site-header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -.5px; text-shadow: 0 1px 6px rgba(0,0,0,.25); }
   .site-header .lead { margin-top: .6rem; opacity: .9; font-size: 1.05rem; line-height: 1.5; max-width: 540px; margin-inline: auto; text-shadow: 0 1px 4px rgba(0,0,0,.2); }
 

@@ -93,15 +93,22 @@ const money = new Intl.NumberFormat("ru-RU", {
   style: "currency", currency: "RUB", maximumFractionDigits: 0,
 });
 
+const SITE_NAME = process.env.SITE_NAME || "";
+const SITE_URL  = process.env.SITE_URL  || "";
+
 app.get("/", async (req, res) => {
   try {
     const { rows: services } = await pool.query("SELECT * FROM services ORDER BY id");
     const { rows: contacts } = await pool.query("SELECT * FROM contacts ORDER BY id");
+    const hasHero = fs.existsSync(heroPath);
     res.render("main", {
-      title:       `ремонт оргтехники "Заправка-Курск"`,
-      description: "Профессиональный ремонт оргтехники — все виды услуг",
-      heading:     "Услуги по ремонту",
-      subheading:  "Быстро, качественно, с гарантией. \n Выезд мастера в день обращения.",
+      siteName:    SITE_NAME,
+      siteUrl:     SITE_URL,
+      title:       "Ремонт оргтехники и заправка картриджей в Курске",
+      description: "Ремонт принтеров, МФУ и копиров, заправка и продажа картриджей в Курске. Выезд мастера в день обращения, гарантия на все виды работ. Звоните!",
+      heading:     "Ремонт оргтехники и заправка картриджей",
+      subheading:  "Принтеры, МФУ, копиры — ремонт с гарантией. Заправка и продажа картриджей. Выезд мастера в день обращения.",
+      ogImage:     hasHero ? `${SITE_URL}/hero-bg.jpg` : "",
       services:    services.map(s => ({ ...s, priceFormatted: money.format(s.price) })),
       contacts:    contacts.map(c => ({ ...c, textColor: textColorFor(c.color) })),
     });
