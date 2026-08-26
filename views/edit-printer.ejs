@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Редактирование модели</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f1f5f9; color: #1e293b; padding: 2rem 1rem; }
+    h1   { font-size: 1.2rem; margin-bottom: 1.5rem; }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.07);
+      padding: 1.5rem;
+      max-width: 480px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: .3rem; margin-bottom: 1rem; }
+    label  { font-size: .85rem; font-weight: 600; }
+    input, select { padding: .5rem .7rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: .95rem; }
+    input:focus, select:focus { outline: 2px solid #2563eb; border-color: transparent; }
+    .check { flex-direction: row; align-items: center; gap: .5rem; font-weight: 500; }
+    .preview { max-width: 100%; max-height: 140px; object-fit: contain; border-radius: 8px; background: #eef2f7; margin-bottom: .5rem; display: block; }
+
+    .actions { display: flex; gap: .6rem; margin-top: 1.25rem; }
+    button[type="submit"] {
+      background: #2563eb; color: #fff;
+      border: none; border-radius: 6px;
+      padding: .5rem 1.2rem; font-size: .95rem; cursor: pointer;
+    }
+    button[type="submit"]:hover { background: #1d4ed8; }
+    a.cancel {
+      display: inline-flex; align-items: center;
+      color: #64748b; font-size: .9rem; text-decoration: none;
+      padding: .5rem .75rem; border-radius: 6px;
+    }
+    a.cancel:hover { background: #f1f5f9; }
+  </style>
+</head>
+<body>
+
+<h1>Модель на витрине</h1>
+
+<div class="card">
+  <form method="POST" action="/admin/featured/<%= printer.id %>/edit" enctype="multipart/form-data">
+
+    <div class="field">
+      <label for="brand">Бренд</label>
+      <input id="brand" name="brand" type="text" value="<%= printer.brand %>" required />
+    </div>
+
+    <div class="field">
+      <label for="model">Модель</label>
+      <input id="model" name="model" type="text" value="<%= printer.model %>" required />
+    </div>
+
+    <div class="field">
+      <label for="device_type">Тип</label>
+      <select id="device_type" name="device_type">
+        <option value="printer" <%= printer.device_type === 'printer' ? 'selected' : '' %>>Принтер</option>
+        <option value="mfp" <%= printer.device_type === 'mfp' ? 'selected' : '' %>>МФУ</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="print_technology">Печать</label>
+      <select id="print_technology" name="print_technology">
+        <option value="laser" <%= printer.print_technology === 'laser' ? 'selected' : '' %>>лазер</option>
+        <option value="inkjet" <%= printer.print_technology === 'inkjet' ? 'selected' : '' %>>струйный</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="color_mode">Цвет</label>
+      <select id="color_mode" name="color_mode">
+        <option value="mono" <%= printer.color_mode === 'mono' ? 'selected' : '' %>>ч/б</option>
+        <option value="color" <%= printer.color_mode === 'color' ? 'selected' : '' %>>цветной</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Фото (необязательно)</label>
+      <% if (printer.imageUrl) { %>
+        <img class="preview" src="<%= printer.imageUrl %>" alt="" />
+        <label class="check"><input type="checkbox" name="remove_photo" /> Удалить фото</label>
+      <% } %>
+      <input name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+    </div>
+
+    <label class="field check">
+      <input type="checkbox" name="is_active" <%= printer.is_active ? 'checked' : '' %> />
+      Показывать на главной
+    </label>
+
+    <div class="actions">
+      <button type="submit">Сохранить</button>
+      <a class="cancel" href="/home">← Отмена</a>
+    </div>
+  </form>
+</div>
+
+</body>
+</html>

@@ -50,6 +50,12 @@
     .add-form input[type="color"] { padding: .15rem .3rem; width: 60px; height: 34px; cursor: pointer; }
     .btn-add { background: #2563eb; color: #fff; padding: .45rem 1rem; align-self: flex-end; }
     .btn-add:hover { background: #1d4ed8; }
+    .btn-move { background: #f1f5f9; color: #334155; min-width: 32px; }
+    .btn-move:hover { background: #e2e8f0; }
+    .btn-move:disabled { opacity: .35; cursor: default; }
+    .add-form select { padding: .4rem .6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: .9rem; }
+    .thumb { width: 44px; height: 32px; object-fit: cover; border-radius: 4px; background: #eef2f7; display: block; }
+    .muted { color: #94a3b8; font-size: .8rem; font-weight: 400; }
 
     .empty { color: #94a3b8; font-size: .9rem; margin-bottom: 1rem; }
   </style>
@@ -78,6 +84,85 @@
     <label><%= hasHero ? 'Заменить фото' : 'Загрузить фото' %><input name="hero" type="file" accept="image/*" required style="padding:.3rem 0;border:none" /></label>
     <button class="btn-add" type="submit">Загрузить</button>
   </form>
+</div>
+
+<!-- ── Популярные модели ── -->
+<div class="card">
+  <h2>Популярные модели <span class="muted">на главной, до <%= featuredMax %> штук</span></h2>
+
+  <% if (featured.length === 0) { %>
+    <p class="empty">Нет моделей в витрине. Добавьте первую.</p>
+  <% } else { %>
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Бренд</th>
+          <th>Модель</th>
+          <th>Тип</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% featured.forEach(function(p, i) { %>
+          <tr>
+            <td>
+              <% if (p.imageUrl) { %>
+                <img class="thumb" src="<%= p.imageUrl %>" alt="" />
+              <% } else { %>
+                <span class="muted"><%= String(i + 1).padStart(2, '0') %></span>
+              <% } %>
+            </td>
+            <td><%= p.brand %><% if (!p.is_active) { %> <span class="muted">скрыта</span><% } %></td>
+            <td><%= p.model %></td>
+            <td><%= p.meta %></td>
+            <td style="display:flex;gap:.35rem;align-items:center;flex-wrap:wrap">
+              <form class="inline" method="POST" action="/admin/featured/<%= p.id %>/move">
+                <input type="hidden" name="dir" value="up" />
+                <button class="btn-move" type="submit" <%= i === 0 ? 'disabled' : '' %>>↑</button>
+              </form>
+              <form class="inline" method="POST" action="/admin/featured/<%= p.id %>/move">
+                <input type="hidden" name="dir" value="down" />
+                <button class="btn-move" type="submit" <%= i === featured.length - 1 ? 'disabled' : '' %>>↓</button>
+              </form>
+              <a class="btn-edit" href="/admin/featured/<%= p.id %>/edit">Изменить</a>
+              <form class="inline" method="POST" action="/admin/featured/<%= p.id %>/delete">
+                <button class="btn-delete" onclick="return confirm('Убрать «<%= p.brand %> <%= p.model %>» с витрины?')">Удалить</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+
+  <% if (featured.length < featuredMax) { %>
+    <form method="POST" action="/admin/featured/add" class="add-form">
+      <label>Бренд<input name="brand" placeholder="HP" required /></label>
+      <label>Модель<input name="model" placeholder="LaserJet P1102" required /></label>
+      <label>Тип
+        <select name="device_type">
+          <option value="printer">Принтер</option>
+          <option value="mfp">МФУ</option>
+        </select>
+      </label>
+      <label>Печать
+        <select name="print_technology">
+          <option value="laser">лазер</option>
+          <option value="inkjet">струйный</option>
+        </select>
+      </label>
+      <label>Цвет
+        <select name="color_mode">
+          <option value="mono">ч/б</option>
+          <option value="color">цветной</option>
+        </select>
+      </label>
+      <button class="btn-add" type="submit">+ Добавить</button>
+    </form>
+  <% } else { %>
+    <p class="empty">Витрина заполнена (<%= featuredMax %>). Удалите или замените модель, чтобы добавить другую.</p>
+  <% } %>
 </div>
 
 <!-- ── Услуги ── -->
