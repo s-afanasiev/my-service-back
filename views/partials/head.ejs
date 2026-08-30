@@ -431,13 +431,14 @@
   }
   .printer-modal-close:hover { background: #e2e8f0; }
   .printer-modal-photo {
-    flex: 1 1 auto;
+    flex: 0 0 48%;
+    height: 48%;
     min-height: 0;
     min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 0 .75rem;
+    margin: 0 0 .55rem;
     border-radius: 12px;
     overflow: hidden;
     background: #fff;
@@ -474,16 +475,23 @@
     letter-spacing: .14em;
     text-transform: uppercase;
     color: var(--accent, var(--primary));
-    flex: none;
+    flex: 0 0 1.2em;
+    min-height: 1.2em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .printer-modal-dialog h3 {
-    margin: .2rem 0 .75rem;
+    margin: .15rem 0 .5rem;
     font-size: 1.45rem;
     font-weight: 700;
     letter-spacing: -.3px;
     line-height: 1.25;
     padding-right: 2rem;
-    flex: none;
+    flex: 0 0 2.5em;
+    min-height: 2.5em;
+    max-height: 2.5em;
+    overflow: hidden;
   }
   .printer-modal-dialog h4 {
     margin: 0 0 .4rem;
@@ -494,14 +502,14 @@
     color: var(--muted);
   }
   .printer-modal-desc-block {
-    flex: none;
-    margin: 0 0 .75rem;
-    max-height: 22%;
-    overflow: auto;
+    flex: 0 0 auto;
+    margin: 0 0 .65rem;
   }
   .printer-modal-desc {
     font-size: .98rem;
     line-height: 1.55;
+    height: 4.65em;
+    overflow: auto;
     color: var(--text);
     white-space: pre-wrap;
   }
@@ -510,8 +518,8 @@
     color: var(--muted);
   }
   .printer-modal-specs-block {
-    flex: 0 1 30%;
-    min-height: 120px;
+    flex: 1 1 auto;
+    min-height: 0;
     display: flex;
     flex-direction: column;
   }
