@@ -19,8 +19,9 @@
 
     .field { display: flex; flex-direction: column; gap: .3rem; margin-bottom: 1rem; }
     label  { font-size: .85rem; font-weight: 600; }
-    input, select { padding: .5rem .7rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: .95rem; }
-    input:focus, select:focus { outline: 2px solid #2563eb; border-color: transparent; }
+    input, select, textarea { padding: .5rem .7rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: .95rem; font-family: inherit; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid #2563eb; border-color: transparent; }
+    textarea { resize: vertical; min-height: 5.5rem; }
     .check { flex-direction: row; align-items: center; gap: .5rem; font-weight: 500; }
     .preview { max-width: 100%; max-height: 140px; object-fit: contain; border-radius: 8px; background: #eef2f7; margin-bottom: .5rem; display: block; }
 
@@ -81,12 +82,25 @@
     </div>
 
     <div class="field">
-      <label>Фото (необязательно)</label>
+      <label>Фото</label>
       <% if (printer.imageUrl) { %>
         <img class="preview" src="<%= printer.imageUrl %>" alt="" />
-        <label class="check"><input type="checkbox" name="remove_photo" /> Удалить фото</label>
+        <% if (printer.imageSource === 'upload') { %>
+          <span style="font-size:.8rem;color:#64748b">Загружено на этот сервер</span>
+          <label class="check"><input type="checkbox" name="remove_photo" /> Удалить загруженное фото</label>
+        <% } else { %>
+          <span style="font-size:.8rem;color:#64748b">Файл из репозитория: assets/printers/<%= printer.imageFile %></span>
+        <% } %>
+      <% } else { %>
+        <span style="font-size:.8rem;color:#64748b">Пока схема. Положите снимок как <code>assets/printers/<%= printer.imageFile %></code> или загрузите файл ниже.</span>
       <% } %>
       <input name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+    </div>
+
+    <div class="field">
+      <label for="description">Описание в модальном окне</label>
+      <textarea id="description" name="description" rows="4" maxlength="2000"
+                placeholder="Кратко: чем удобна модель, какой картридж, что чиним"><%= printer.description || '' %></textarea>
     </div>
 
     <label class="field check">

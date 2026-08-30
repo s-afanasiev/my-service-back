@@ -57,7 +57,11 @@
     .thumb { width: 44px; height: 32px; object-fit: cover; border-radius: 4px; background: #eef2f7; display: block; }
     .muted { color: #94a3b8; font-size: .8rem; font-weight: 400; }
 
-    .empty { color: #94a3b8; font-size: .9rem; margin-bottom: 1rem; }
+    .hint { color: #64748b; font-size: .85rem; line-height: 1.45; margin: 0 0 1rem; max-width: 62rem; }
+    .hint code { font-size: .8rem; background: #f1f5f9; padding: .1rem .35rem; border-radius: 4px; }
+    .file-name { font-family: ui-monospace, Consolas, monospace; font-size: .75rem; color: #64748b; }
+    .photo-upload input[type="file"] { font-size: .75rem; max-width: 11rem; }
+    .thumb-empty { width: 44px; height: 32px; border-radius: 4px; background: #eef2f7; display: grid; place-items: center; color: #94a3b8; font-size: .7rem; }
   </style>
 </head>
 <body>
@@ -89,6 +93,12 @@
 <!-- ── Популярные модели ── -->
 <div class="card">
   <h2>Популярные модели <span class="muted">на главной, до <%= featuredMax %> штук</span></h2>
+  <p class="hint">
+    Этот список и есть витрина на сайте: порядок — стрелками, временно убрать — «Изменить» → снять «Показывать на главной», заменить модель — удалить и добавить другую.
+    Фото лучше снять с аппаратов в мастерской (свои снимки, без водяных знаков с чужих сайтов).
+    Чтобы картинка уехала на сервер вместе с кодом, положите файл в <code>assets/printers/</code> с именем из колонки «файл» и сделайте commit + pull.
+    Загрузка через форму остаётся только на этом сервере (<code>public/featured/</code>, в git не попадает).
+  </p>
 
   <% if (featured.length === 0) { %>
     <p class="empty">Нет моделей в витрине. Добавьте первую.</p>
@@ -96,9 +106,10 @@
     <table>
       <thead>
         <tr>
-          <th></th>
+          <th>Фото</th>
           <th>Бренд</th>
           <th>Модель</th>
+          <th>Файл</th>
           <th>Тип</th>
           <th></th>
         </tr>
@@ -110,11 +121,15 @@
               <% if (p.imageUrl) { %>
                 <img class="thumb" src="<%= p.imageUrl %>" alt="" />
               <% } else { %>
-                <span class="muted"><%= String(i + 1).padStart(2, '0') %></span>
+                <span class="thumb-empty">нет</span>
               <% } %>
+              <form class="photo-upload" method="POST" action="/admin/featured/<%= p.id %>/photo" enctype="multipart/form-data" style="margin-top:.35rem">
+                <input name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onchange="this.form.submit()" />
+              </form>
             </td>
             <td><%= p.brand %><% if (!p.is_active) { %> <span class="muted">скрыта</span><% } %></td>
             <td><%= p.model %></td>
+            <td class="file-name"><%= p.imageFile %></td>
             <td><%= p.meta %></td>
             <td style="display:flex;gap:.35rem;align-items:center;flex-wrap:wrap">
               <form class="inline" method="POST" action="/admin/featured/<%= p.id %>/move">

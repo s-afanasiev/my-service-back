@@ -11,8 +11,10 @@ const app  = express();
 const PORT = 3001;
 
 const FEATURED_MAX = 8;
-const featuredDir  = path.join(__dirname, "public", "featured");
+const featuredDir       = path.join(__dirname, "public", "featured");
+const assetsPrintersDir = path.join(__dirname, "assets", "printers");
 const IMAGE_EXT    = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif" };
+const IMAGE_EXTS   = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
 const DEVICE_TYPES = new Set(["printer", "mfp"]);
 const PRINT_TECHS  = new Set(["laser", "inkjet"]);
 const COLOR_MODES  = new Set(["mono", "color"]);
@@ -59,9 +61,12 @@ async function initDB() {
     color_mode        VARCHAR(20)  NOT NULL DEFAULT 'mono',
     sort_order        SMALLINT     NOT NULL DEFAULT 0,
     is_active         BOOLEAN      NOT NULL DEFAULT true,
-    image_filename    VARCHAR(255)
+    image_filename    VARCHAR(255),
+    description       TEXT
   )`);
+  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS description TEXT`);
   fs.mkdirSync(featuredDir, { recursive: true });
+  fs.mkdirSync(assetsPrintersDir, { recursive: true });
   const { rows: countRows } = await pool.query("SELECT COUNT(*)::int AS n FROM featured_printers");
   if (countRows[0].n === 0) {
     for (let i = 0; i < FEATURED_SEED.length; i++) {
@@ -95,30 +100,85 @@ function pickEnum(value, allowed, fallback) {
   return allowed.has(v) ? v : fallback;
 }
 
-function featuredImageAbs(filename) {
-  if (!filename) return "";
-  const abs = path.join(featuredDir, filename);
-  return fs.existsSync(abs) ? abs : "";
+function slugPart(s) {
+  return String(s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, "e")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function printerSlug(brand, model) {
+  return [slugPart(brand), slugPart(model)].filter(Boolean).join("-");
+}
+
+function firstExisting(dir, stem) {
+  for (const ext of IMAGE_EXTS) {
+    const file = stem + ext;
+    if (fs.existsSync(path.join(dir, file))) return file;
+  }
+  return "";
+}
+
+function findAssetFile(slug) {
+  const hyphen = firstExisting(assetsPrintersDir, slug);
+  if (hyphen) return hyphen;
+  const underscore = firstExisting(assetsPrintersDir, slug.replace(/-/g, "_"));
+  if (underscore) return underscore;
+
+  const want = slug.replace(/-/g, "");
+  let files = [];
+  try { files = fs.readdirSync(assetsPrintersDir); } catch (err) { return ""; }
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const ext = path.extname(file).toLowerCase();
+    if (IMAGE_EXTS.indexOf(ext) === -1) continue;
+    const stem = path.basename(file, ext).toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (stem === want) return file;
+  }
+  return "";
+}
+
+function resolveFeaturedImage(row) {
+  const slug = printerSlug(row.brand, row.model);
+  if (row.image_filename && fs.existsSync(path.join(featuredDir, row.image_filename))) {
+    return { url: "/featured/" + row.image_filename, source: "upload", slug, file: row.image_filename };
+  }
+  const uploaded = firstExisting(featuredDir, String(row.id));
+  if (uploaded) {
+    return { url: "/featured/" + uploaded, source: "upload", slug, file: uploaded };
+  }
+  const asset = findAssetFile(slug);
+  if (asset) {
+    return { url: "/assets/printers/" + asset, source: "asset", slug, file: asset };
+  }
+  return { url: "", source: "", slug, file: slug.replace(/-/g, "_") + ".jpg" };
 }
 
 function removeFeaturedImage(filename) {
-  const abs = featuredImageAbs(filename);
-  if (abs) fs.unlinkSync(abs);
+  if (!filename) return;
+  const abs = path.join(featuredDir, filename);
+  if (fs.existsSync(abs)) fs.unlinkSync(abs);
 }
 
 function mapFeatured(row) {
   const type = row.device_type === "mfp" ? "МФУ" : "Принтер";
   const tech = row.print_technology === "inkjet" ? "струйный" : "лазер";
   const color = row.color_mode === "color" ? "цветной" : "ч/б";
-  const imageUrl = featuredImageAbs(row.image_filename) ? `/featured/${row.image_filename}` : "";
+  const image = resolveFeaturedImage(row);
   return {
     ...row,
     typeLabel:  type,
     techLabel:  tech,
     colorLabel: color,
     meta:       `${type} · ${tech} · ${color}`,
-    imageUrl,
-    brandSlug:  String(row.brand).trim().toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    imageUrl:    image.url,
+    imageSource: image.source,
+    imageFile:   image.file,
+    slug:        image.slug,
+    brandSlug:   slugPart(row.brand),
+    description: row.description || "",
   };
 }
 
@@ -172,6 +232,7 @@ const featuredUpload = multer({
 });
 
 // ── Express настройки ─────────────────────────────────────────────────────────
+app.use("/assets", express.static(path.join(__dirname, "assets")));
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: false }));
 app.set("view engine", "ejs");
@@ -351,6 +412,7 @@ if (!adminPass) {
       print_technology: pickEnum(body.print_technology, PRINT_TECHS, "laser"),
       color_mode:       pickEnum(body.color_mode, COLOR_MODES, "mono"),
       is_active:        body.is_active === "on" || body.is_active === "true" || body.is_active === "1",
+      description:      String(body.description || "").trim().slice(0, 2000),
     };
   }
 
@@ -383,11 +445,28 @@ if (!adminPass) {
     await pool.query(
       `UPDATE featured_printers
           SET brand = $1, model = $2, device_type = $3, print_technology = $4,
-              color_mode = $5, is_active = $6, image_filename = $7
-        WHERE id = $8`,
+              color_mode = $5, is_active = $6, image_filename = $7, description = $8
+        WHERE id = $9`,
       [parsed.brand, parsed.model, parsed.device_type, parsed.print_technology,
-       parsed.color_mode, parsed.is_active, imageFilename, req.params.id]
+       parsed.color_mode, parsed.is_active, imageFilename, parsed.description, req.params.id]
     );
+    res.redirect("/home");
+  });
+
+  app.post("/admin/featured/:id/photo", auth, (req, res, next) => {
+    featuredUpload.single("photo")(req, res, (err) => {
+      if (err) return res.redirect("/home");
+      next();
+    });
+  }, async (req, res) => {
+    if (!req.file) return res.redirect("/home");
+    const { rows } = await pool.query("SELECT image_filename FROM featured_printers WHERE id = $1", [req.params.id]);
+    if (!rows[0]) return res.redirect("/home");
+    if (rows[0].image_filename && rows[0].image_filename !== req.file.filename) {
+      removeFeaturedImage(rows[0].image_filename);
+    }
+    await pool.query("UPDATE featured_printers SET image_filename = $1 WHERE id = $2",
+      [req.file.filename, req.params.id]);
     res.redirect("/home");
   });
 

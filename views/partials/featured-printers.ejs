@@ -41,6 +41,10 @@
               <span><%= String(i + 1).padStart(2, '0') %></span>
               <span><%= p.typeLabel %></span>
             </div>
+            <span class="film-type" hidden><%= p.typeLabel %></span>
+            <span class="film-tech" hidden><%= p.techLabel %></span>
+            <span class="film-color" hidden><%= p.colorLabel %></span>
+            <p class="film-desc" hidden><%= p.description %></p>
           </li>
         <% }); %>
       </ul>
@@ -58,6 +62,22 @@
     <p class="filmstrip-live" data-live aria-live="polite"></p>
   </div>
 </section>
+
+<div class="printer-modal" data-printer-modal hidden>
+  <div class="printer-modal-backdrop" data-modal-close></div>
+  <div class="printer-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="printer-modal-title">
+    <button type="button" class="printer-modal-close" data-modal-close aria-label="Закрыть">×</button>
+    <div class="printer-modal-photo" data-modal-photo></div>
+    <p class="printer-modal-brand" data-modal-brand></p>
+    <h3 id="printer-modal-title" data-modal-title></h3>
+    <dl class="printer-modal-specs">
+      <div><dt>Тип</dt><dd data-modal-type></dd></div>
+      <div><dt>Печать</dt><dd data-modal-tech></dd></div>
+      <div><dt>Цвет</dt><dd data-modal-color></dd></div>
+    </dl>
+    <p class="printer-modal-desc" data-modal-desc></p>
+  </div>
+</div>
 <script>
 (function () {
   var root = document.querySelector("[data-filmstrip]");
@@ -67,6 +87,7 @@
   var dots  = [].slice.call(root.querySelectorAll(".filmstrip-dot"));
   var live  = root.querySelector("[data-live]");
   var stage = root.querySelector(".filmstrip-stage");
+  var modal = document.querySelector("[data-printer-modal]");
   var n = cards.length;
   if (!n) return;
 
@@ -125,7 +146,40 @@
   function startIdle() {
     stopIdle();
     if (reduce || n < 2) return;
+    if (modal && !modal.hidden) return;
     timer = setInterval(function () { go(active + 1); }, 4500);
+  }
+
+  function textOf(el, sel) {
+    var node = el.querySelector(sel);
+    return node ? node.textContent.replace(/^\s+|\s+$/g, "") : "";
+  }
+
+  function openModal(card) {
+    if (!modal) return;
+    stopIdle();
+    var photo = modal.querySelector("[data-modal-photo]");
+    var art = card.querySelector(".film-art");
+    photo.innerHTML = "";
+    if (art) photo.appendChild(art.cloneNode(true));
+    modal.querySelector("[data-modal-brand]").textContent = textOf(card, ".film-brand");
+    modal.querySelector("[data-modal-title]").textContent = textOf(card, ".film-model");
+    modal.querySelector("[data-modal-type]").textContent = textOf(card, ".film-type");
+    modal.querySelector("[data-modal-tech]").textContent = textOf(card, ".film-tech");
+    modal.querySelector("[data-modal-color]").textContent = textOf(card, ".film-color");
+    modal.querySelector("[data-modal-desc]").textContent = textOf(card, ".film-desc");
+    modal.style.setProperty("--accent", getComputedStyle(card).getPropertyValue("--accent"));
+    modal.hidden = false;
+    document.body.classList.add("modal-open");
+    var closeBtn = modal.querySelector(".printer-modal-close");
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function closeModal() {
+    if (!modal || modal.hidden) return;
+    modal.hidden = true;
+    document.body.classList.remove("modal-open");
+    startIdle();
   }
 
   if (use3d) root.classList.add("is-3d");
@@ -140,7 +194,8 @@
     card.addEventListener("click", function () {
       if (moved) return;
       var i = Number(card.getAttribute("data-index"));
-      if (i !== active) { go(i); startIdle(); }
+      if (i !== active) go(i);
+      openModal(card);
     });
   });
 
@@ -168,6 +223,26 @@
     startIdle();
   });
 
+  var wheelLock = 0;
+  var wheelAcc = 0;
+  root.addEventListener("wheel", function (e) {
+    if (modal && !modal.hidden) return;
+    var dx = e.deltaX;
+    var dy = e.deltaY;
+    var delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+    if (!delta) return;
+    e.preventDefault();
+    var now = Date.now();
+    if (now < wheelLock) return;
+    wheelAcc += delta;
+    if (Math.abs(wheelAcc) < 40) return;
+    var dir = wheelAcc > 0 ? 1 : -1;
+    wheelAcc = 0;
+    wheelLock = now + 420;
+    go(active + dir);
+    startIdle();
+  }, { passive: false });
+
   root.addEventListener("mouseenter", stopIdle);
   root.addEventListener("mouseleave", startIdle);
 
@@ -188,6 +263,15 @@
 
   window.addEventListener("resize", function () {
     if (use3d) layout();
+  });
+
+  if (modal) {
+    modal.querySelectorAll("[data-modal-close]").forEach(function (el) {
+      el.addEventListener("click", closeModal);
+    });
+  }
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeModal();
   });
 
   layout();
