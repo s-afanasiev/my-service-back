@@ -30,6 +30,57 @@ const FEATURED_SEED = [
   ["Pantum",  "P2207",                 "printer", "laser",  "mono"],
 ];
 
+const FEATURED_DETAILS = {
+  "HP|LaserJet P1102": {
+    description: "Компактный чёрно-белый лазерник для дома и небольшого офиса. Простая конструкция, недорогой расходник 85A — одна из самых частых моделей на заправке.",
+    paper_format: "A4", print_speed_ppm: 18, resolution_dpi: "600×600",
+    is_duplex: false, is_wifi: false, is_ethernet: false, is_usb: true,
+    release_year: 2011, has_adf: false, scan_resolution_dpi: null, cartridge_note: "85A / CE285A",
+  },
+  "HP|LaserJet Pro MFP 135a": {
+    description: "МФУ «печать + скан + копир» без лишней электроники. Удобно в офисе, где нужен комплект в одном корпусе. Картридж 106A/107A хорошо заправляется.",
+    paper_format: "A4", print_speed_ppm: 20, resolution_dpi: "1200×1200",
+    is_duplex: false, is_wifi: false, is_ethernet: false, is_usb: true,
+    release_year: 2019, has_adf: false, scan_resolution_dpi: "1200×1200", cartridge_note: "106A / 107A (W1106A / W1107A)",
+  },
+  "Canon|i-SENSYS MF3010": {
+    description: "Надёжное лазерное МФУ Canon: печать, сканер и копир. Картридж 725 — массовый, заправка и восстановление отработаны.",
+    paper_format: "A4", print_speed_ppm: 18, resolution_dpi: "1200×600",
+    is_duplex: false, is_wifi: false, is_ethernet: false, is_usb: true,
+    release_year: 2012, has_adf: false, scan_resolution_dpi: "600×600", cartridge_note: "725 / 3484B002",
+  },
+  "Canon|i-SENSYS LBP6030": {
+    description: "Тихий компактный лазерный принтер. Мало места на столе, картридж тот же 725, что и у MF3010 — удобно держать расходники.",
+    paper_format: "A4", print_speed_ppm: 18, resolution_dpi: "2400×600",
+    is_duplex: false, is_wifi: false, is_ethernet: false, is_usb: true,
+    release_year: 2012, has_adf: false, scan_resolution_dpi: null, cartridge_note: "725 / 3484B002",
+  },
+  "Brother|HL-1110R": {
+    description: "Недорогой лазер Brother с отдельным тонер-картриджем TN-1075. Часто выбирают из‑за низкой цены заправки и простой замены расходника.",
+    paper_format: "A4", print_speed_ppm: 20, resolution_dpi: "2400×600",
+    is_duplex: false, is_wifi: false, is_ethernet: false, is_usb: true,
+    release_year: 2014, has_adf: false, scan_resolution_dpi: null, cartridge_note: "TN-1075",
+  },
+  "Xerox|Phaser 3020": {
+    description: "Компактный лазер Xerox для небольшой печати. Картридж 106R02773 заправляется, аппарат неприхотлив в сервисе.",
+    paper_format: "A4", print_speed_ppm: 20, resolution_dpi: "1200×1200",
+    is_duplex: false, is_wifi: true, is_ethernet: false, is_usb: true,
+    release_year: 2014, has_adf: false, scan_resolution_dpi: null, cartridge_note: "106R02773",
+  },
+  "Samsung|Xpress M2070": {
+    description: "МФУ Samsung: печать, скан и копир в одном корпусе. Картридж MLT-D111S — одна из самых ходовых позиций по заправке.",
+    paper_format: "A4", print_speed_ppm: 20, resolution_dpi: "1200×1200",
+    is_duplex: false, is_wifi: false, is_ethernet: false, is_usb: true,
+    release_year: 2014, has_adf: false, scan_resolution_dpi: "1200×1200", cartridge_note: "MLT-D111S",
+  },
+  "Pantum|P2207": {
+    description: "Доступный лазер Pantum, который часто берут вместо дорогих брендов. Картридж PC-211EV заправляется, запчасти недорогие.",
+    paper_format: "A4", print_speed_ppm: 22, resolution_dpi: "1200×1200",
+    is_duplex: false, is_wifi: false, is_ethernet: false, is_usb: true,
+    release_year: 2016, has_adf: false, scan_resolution_dpi: null, cartridge_note: "PC-211EV",
+  },
+};
+
 // ── Пул соединений PostgreSQL ─────────────────────────────────────────────────
 const pool = new Pool({
   host:     process.env.DB_HOST     || "localhost",
@@ -62,9 +113,31 @@ async function initDB() {
     sort_order        SMALLINT     NOT NULL DEFAULT 0,
     is_active         BOOLEAN      NOT NULL DEFAULT true,
     image_filename    VARCHAR(255),
-    description       TEXT
+    description       TEXT,
+    paper_format         VARCHAR(20),
+    print_speed_ppm      NUMERIC(5,1),
+    resolution_dpi       VARCHAR(50),
+    is_duplex            BOOLEAN,
+    is_wifi              BOOLEAN,
+    is_ethernet          BOOLEAN,
+    is_usb               BOOLEAN,
+    release_year         SMALLINT,
+    has_adf              BOOLEAN,
+    scan_resolution_dpi  VARCHAR(50),
+    cartridge_note       VARCHAR(150)
   )`);
   await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS description TEXT`);
+  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS paper_format VARCHAR(20)`);
+  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS print_speed_ppm NUMERIC(5,1)`);
+  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS resolution_dpi VARCHAR(50)`);
+  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS is_duplex BOOLEAN`);
+  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS is_wifi BOOLEAN`);
+  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS is_ethernet BOOLEAN`);
+  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS is_usb BOOLEAN`);
+  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS release_year SMALLINT`);
+  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS has_adf BOOLEAN`);
+  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS scan_resolution_dpi VARCHAR(50)`);
+  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS cartridge_note VARCHAR(150)`);
   fs.mkdirSync(featuredDir, { recursive: true });
   fs.mkdirSync(assetsPrintersDir, { recursive: true });
   const { rows: countRows } = await pool.query("SELECT COUNT(*)::int AS n FROM featured_printers");
@@ -79,6 +152,7 @@ async function initDB() {
       );
     }
   }
+  await fillFeaturedDetails();
 }
 
 // ── Вспомогательные функции ───────────────────────────────────────────────────
@@ -98,6 +172,84 @@ function timingSafeEq(a, b) {
 function pickEnum(value, allowed, fallback) {
   const v = String(value || "").trim();
   return allowed.has(v) ? v : fallback;
+}
+
+function parseOptStr(v, max) {
+  const s = String(v || "").trim().slice(0, max || 255);
+  return s || null;
+}
+
+function parseOptInt(v) {
+  if (v === "" || v == null) return null;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseOptNum(v) {
+  if (v === "" || v == null) return null;
+  const n = parseFloat(String(v).replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
+function flagLabel(v) {
+  if (v === true) return "есть";
+  if (v === false) return "нет";
+  return "";
+}
+
+function specRows(row, labels) {
+  const rows = [];
+  function push(label, value) {
+    if (value === "" || value == null) return;
+    rows.push({ label: label, value: String(value) });
+  }
+  push("Тип", labels.type);
+  push("Печать", labels.tech);
+  push("Цвет", labels.color);
+  push("Формат бумаги", row.paper_format);
+  if (row.print_speed_ppm != null && row.print_speed_ppm !== "") {
+    push("Скорость печати", String(row.print_speed_ppm).replace(/\.0$/, "") + " стр/мин");
+  }
+  push("Разрешение печати", row.resolution_dpi);
+  push("Двусторонняя печать", flagLabel(row.is_duplex));
+  push("USB", flagLabel(row.is_usb));
+  push("Wi‑Fi", flagLabel(row.is_wifi));
+  push("Ethernet", flagLabel(row.is_ethernet));
+  push("Разрешение сканера", row.scan_resolution_dpi);
+  if (row.device_type === "mfp") push("Автоподатчик (ADF)", flagLabel(row.has_adf));
+  if (row.release_year) push("Год модели", row.release_year);
+  push("Картридж", row.cartridge_note);
+  return rows;
+}
+
+async function fillFeaturedDetails() {
+  const { rows } = await pool.query("SELECT id, brand, model FROM featured_printers");
+  for (const row of rows) {
+    const extra = FEATURED_DETAILS[row.brand + "|" + row.model];
+    if (!extra) continue;
+    await pool.query(
+      `UPDATE featured_printers SET
+         description         = COALESCE(description, $1),
+         paper_format        = COALESCE(paper_format, $2),
+         print_speed_ppm     = COALESCE(print_speed_ppm, $3),
+         resolution_dpi      = COALESCE(resolution_dpi, $4),
+         is_duplex           = COALESCE(is_duplex, $5),
+         is_wifi             = COALESCE(is_wifi, $6),
+         is_ethernet         = COALESCE(is_ethernet, $7),
+         is_usb              = COALESCE(is_usb, $8),
+         release_year        = COALESCE(release_year, $9),
+         has_adf             = COALESCE(has_adf, $10),
+         scan_resolution_dpi = COALESCE(scan_resolution_dpi, $11),
+         cartridge_note      = COALESCE(cartridge_note, $12)
+       WHERE id = $13`,
+      [
+        extra.description, extra.paper_format, extra.print_speed_ppm, extra.resolution_dpi,
+        extra.is_duplex, extra.is_wifi, extra.is_ethernet, extra.is_usb,
+        extra.release_year, extra.has_adf, extra.scan_resolution_dpi, extra.cartridge_note,
+        row.id,
+      ]
+    );
+  }
 }
 
 function slugPart(s) {
@@ -179,6 +331,7 @@ function mapFeatured(row) {
     slug:        image.slug,
     brandSlug:   slugPart(row.brand),
     description: row.description || "",
+    specRows:    specRows(row, { type: type, tech: tech, color: color }),
   };
 }
 
@@ -413,6 +566,17 @@ if (!adminPass) {
       color_mode:       pickEnum(body.color_mode, COLOR_MODES, "mono"),
       is_active:        body.is_active === "on" || body.is_active === "true" || body.is_active === "1",
       description:      String(body.description || "").trim().slice(0, 2000),
+      paper_format:     parseOptStr(body.paper_format, 20),
+      print_speed_ppm:  parseOptNum(body.print_speed_ppm),
+      resolution_dpi:   parseOptStr(body.resolution_dpi, 50),
+      is_duplex:        body.is_duplex === "on",
+      is_wifi:          body.is_wifi === "on",
+      is_ethernet:      body.is_ethernet === "on",
+      is_usb:           body.is_usb === "on",
+      release_year:     parseOptInt(body.release_year),
+      has_adf:          body.has_adf === "on",
+      scan_resolution_dpi: parseOptStr(body.scan_resolution_dpi, 50),
+      cartridge_note:   parseOptStr(body.cartridge_note, 150),
     };
   }
 
@@ -445,10 +609,17 @@ if (!adminPass) {
     await pool.query(
       `UPDATE featured_printers
           SET brand = $1, model = $2, device_type = $3, print_technology = $4,
-              color_mode = $5, is_active = $6, image_filename = $7, description = $8
-        WHERE id = $9`,
+              color_mode = $5, is_active = $6, image_filename = $7, description = $8,
+              paper_format = $9, print_speed_ppm = $10, resolution_dpi = $11,
+              is_duplex = $12, is_wifi = $13, is_ethernet = $14, is_usb = $15,
+              release_year = $16, has_adf = $17, scan_resolution_dpi = $18, cartridge_note = $19
+        WHERE id = $20`,
       [parsed.brand, parsed.model, parsed.device_type, parsed.print_technology,
-       parsed.color_mode, parsed.is_active, imageFilename, parsed.description, req.params.id]
+       parsed.color_mode, parsed.is_active, imageFilename, parsed.description,
+       parsed.paper_format, parsed.print_speed_ppm, parsed.resolution_dpi,
+       parsed.is_duplex, parsed.is_wifi, parsed.is_ethernet, parsed.is_usb,
+       parsed.release_year, parsed.has_adf, parsed.scan_resolution_dpi, parsed.cartridge_note,
+       req.params.id]
     );
     res.redirect("/home");
   });

@@ -389,7 +389,7 @@
     z-index: 80;
     display: grid;
     place-items: center;
-    padding: 1.15rem;
+    padding: 2vh 1rem;
   }
   .printer-modal[hidden] { display: none !important; }
   .printer-modal-backdrop {
@@ -402,14 +402,18 @@
   .printer-modal-dialog {
     position: relative;
     z-index: 1;
-    width: min(440px, 100%);
-    max-height: min(90vh, 680px);
-    overflow: auto;
+    width: min(720px, calc(100vw - 1.5rem));
+    height: 80vh;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     background: #fff;
     border-radius: 16px;
     box-shadow: 0 24px 64px rgba(15, 23, 42, .28);
-    padding: 1.15rem 1.25rem 1.4rem;
+    padding: 1.15rem 1.35rem 1.1rem;
   }
+  .printer-modal-dialog:focus { outline: none; }
   .printer-modal-close {
     position: absolute;
     top: .65rem;
@@ -423,63 +427,150 @@
     font-size: 1.35rem;
     line-height: 1;
     cursor: pointer;
+    z-index: 2;
   }
   .printer-modal-close:hover { background: #e2e8f0; }
   .printer-modal-photo {
-    height: 220px;
-    display: grid;
-    place-items: center;
-    margin: 0 0 1rem;
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 0 .75rem;
     border-radius: 12px;
     overflow: hidden;
-    background: linear-gradient(180deg, #e8eef8 0%, #f8fafc 100%);
-    box-shadow: inset 0 3px 0 var(--accent, var(--primary));
+    background: #fff;
   }
-  .printer-modal-photo img {
+  .printer-modal-photo .film-art {
     width: 100%;
-    height: 220px;
-    object-fit: contain;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    background: transparent;
+    box-shadow: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  .printer-modal-photo .printer-svg { width: 210px; height: 134px; }
+  .printer-modal-photo img,
+  .printer-modal-photo .film-art img {
+    width: auto !important;
+    height: auto !important;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    object-position: center;
+    background: transparent;
+    flex: 0 1 auto;
+    min-width: 0;
+    min-height: 0;
+  }
+  .printer-modal-photo .printer-svg { width: min(260px, 70%); height: auto; }
   .printer-modal-brand {
     font-size: .72rem;
     font-weight: 700;
     letter-spacing: .14em;
     text-transform: uppercase;
     color: var(--accent, var(--primary));
+    flex: none;
   }
   .printer-modal-dialog h3 {
-    margin: .2rem 0 .85rem;
-    font-size: 1.25rem;
+    margin: .2rem 0 .75rem;
+    font-size: 1.45rem;
     font-weight: 700;
     letter-spacing: -.3px;
     line-height: 1.25;
     padding-right: 2rem;
+    flex: none;
   }
-  .printer-modal-specs {
-    display: grid;
-    gap: .45rem;
-    margin: 0 0 1rem;
-    padding: .85rem .95rem;
-    background: #f8fafc;
-    border-radius: 10px;
+  .printer-modal-dialog h4 {
+    margin: 0 0 .4rem;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
-  .printer-modal-specs div {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    font-size: .9rem;
+  .printer-modal-desc-block {
+    flex: none;
+    margin: 0 0 .75rem;
+    max-height: 22%;
+    overflow: auto;
   }
-  .printer-modal-specs dt { color: var(--muted); font-weight: 500; }
-  .printer-modal-specs dd { font-weight: 600; color: var(--text); }
   .printer-modal-desc {
-    font-size: .95rem;
-    line-height: 1.5;
+    font-size: .98rem;
+    line-height: 1.55;
     color: var(--text);
     white-space: pre-wrap;
   }
-  .printer-modal-desc:empty { display: none; }
-  body.modal-open { overflow: hidden; }
+  .printer-modal-desc:empty::after {
+    content: "Описание пока не заполнено.";
+    color: var(--muted);
+  }
+  .printer-modal-specs-block {
+    flex: 0 1 30%;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+  }
+  .printer-modal-specs-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    border: 1px solid #e8eef4;
+    border-radius: 10px;
+    background: #f8fafc;
+    -webkit-overflow-scrolling: touch;
+  }
+  .printer-modal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .92rem;
+  }
+  .printer-modal-table th,
+  .printer-modal-table td {
+    padding: .55rem .85rem;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid #e8eef4;
+  }
+  .printer-modal-table tr:last-child th,
+  .printer-modal-table tr:last-child td { border-bottom: none; }
+  .printer-modal-table th {
+    width: 42%;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .printer-modal-table td {
+    font-weight: 600;
+    color: var(--text);
+  }
+  .printer-modal-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+    width: 72px;
+    height: 72px;
+    border: none;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--primary);
+    box-shadow: 0 10px 32px rgba(15, 23, 42, .28);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+  }
+  .printer-modal-nav:hover {
+    background: #eff6ff;
+    transform: translateY(-50%) scale(1.06);
+  }
+  .printer-modal-nav.is-prev { left: max(16px, calc(50% - 360px - 92px)); }
+  .printer-modal-nav.is-next { right: max(16px, calc(50% - 360px - 92px)); }
+  .printer-modal-nav[hidden] { display: none; }
+  .printer-modal-nav svg { display: block; }
 
   @media (max-width: 640px) {
     .filmstrip { grid-template-columns: 36px 1fr 36px; }
@@ -487,6 +578,27 @@
     .film-card, .filmstrip.is-3d .film-card { width: 186px; flex-basis: 186px; }
     .filmstrip.is-3d .filmstrip-stage { height: 320px; }
     .film-model { font-size: .92rem; }
+    .printer-modal { padding: .35rem; }
+    .printer-modal-dialog {
+      width: calc(100vw - .7rem);
+      height: 96vh;
+      max-height: 96vh;
+      height: 96dvh;
+      max-height: 96dvh;
+      padding: .95rem .9rem .85rem;
+      border-radius: 12px;
+    }
+    .printer-modal-dialog h3 { font-size: 1.2rem; }
+    .printer-modal-nav {
+      width: 52px;
+      height: 52px;
+      top: 18%;
+      transform: none;
+    }
+    .printer-modal-nav:hover { transform: none; }
+    .printer-modal-nav.is-prev { left: 6px; }
+    .printer-modal-nav.is-next { right: 6px; }
+    .printer-modal-nav svg { width: 26px; height: 26px; }
   }
 
   /* ── подвал ── */

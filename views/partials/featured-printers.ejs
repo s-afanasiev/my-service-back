@@ -45,6 +45,7 @@
             <span class="film-tech" hidden><%= p.techLabel %></span>
             <span class="film-color" hidden><%= p.colorLabel %></span>
             <p class="film-desc" hidden><%= p.description %></p>
+            <script type="application/json" class="film-specs"><%- JSON.stringify(p.specRows || []).replace(/</g, '\\u003c') %></script>
           </li>
         <% }); %>
       </ul>
@@ -65,18 +66,30 @@
 
 <div class="printer-modal" data-printer-modal hidden>
   <div class="printer-modal-backdrop" data-modal-close></div>
+  <button type="button" class="printer-modal-nav is-prev" data-modal-dir="-1" aria-label="Предыдущий принтер">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 4 7 12l8 8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
   <div class="printer-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="printer-modal-title">
     <button type="button" class="printer-modal-close" data-modal-close aria-label="Закрыть">×</button>
     <div class="printer-modal-photo" data-modal-photo></div>
     <p class="printer-modal-brand" data-modal-brand></p>
     <h3 id="printer-modal-title" data-modal-title></h3>
-    <dl class="printer-modal-specs">
-      <div><dt>Тип</dt><dd data-modal-type></dd></div>
-      <div><dt>Печать</dt><dd data-modal-tech></dd></div>
-      <div><dt>Цвет</dt><dd data-modal-color></dd></div>
-    </dl>
-    <p class="printer-modal-desc" data-modal-desc></p>
+    <div class="printer-modal-desc-block">
+      <h4>Описание</h4>
+      <p class="printer-modal-desc" data-modal-desc></p>
+    </div>
+    <div class="printer-modal-specs-block">
+      <h4>Характеристики</h4>
+      <div class="printer-modal-specs-scroll">
+        <table class="printer-modal-table">
+          <tbody data-modal-specs></tbody>
+        </table>
+      </div>
+    </div>
   </div>
+  <button type="button" class="printer-modal-nav is-next" data-modal-dir="1" aria-label="Следующий принтер">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 4 8 8-8 8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
 </div>
 <script>
 (function () {
@@ -155,24 +168,56 @@
     return node ? node.textContent.replace(/^\s+|\s+$/g, "") : "";
   }
 
-  function openModal(card) {
+  function openModal(card, keepFocus) {
     if (!modal) return;
     stopIdle();
     var photo = modal.querySelector("[data-modal-photo]");
-    var art = card.querySelector(".film-art");
     photo.innerHTML = "";
-    if (art) photo.appendChild(art.cloneNode(true));
+    var srcImg = card.querySelector(".film-art img");
+    var srcArt = card.querySelector(".film-art");
+    if (srcImg) {
+      var img = srcImg.cloneNode(true);
+      img.removeAttribute("width");
+      img.removeAttribute("height");
+      photo.appendChild(img);
+    } else if (srcArt) {
+      photo.appendChild(srcArt.cloneNode(true));
+    }
     modal.querySelector("[data-modal-brand]").textContent = textOf(card, ".film-brand");
     modal.querySelector("[data-modal-title]").textContent = textOf(card, ".film-model");
-    modal.querySelector("[data-modal-type]").textContent = textOf(card, ".film-type");
-    modal.querySelector("[data-modal-tech]").textContent = textOf(card, ".film-tech");
-    modal.querySelector("[data-modal-color]").textContent = textOf(card, ".film-color");
     modal.querySelector("[data-modal-desc]").textContent = textOf(card, ".film-desc");
+    var tbody = modal.querySelector("[data-modal-specs]");
+    tbody.innerHTML = "";
+    var specs = [];
+    var specNode = card.querySelector(".film-specs");
+    if (specNode) {
+      try { specs = JSON.parse(specNode.textContent); } catch (err) { specs = []; }
+    }
+    specs.forEach(function (row) {
+      var tr = document.createElement("tr");
+      var th = document.createElement("th");
+      var td = document.createElement("td");
+      th.textContent = row.label || "";
+      td.textContent = row.value || "";
+      tr.appendChild(th);
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
     modal.style.setProperty("--accent", getComputedStyle(card).getPropertyValue("--accent"));
     modal.hidden = false;
     document.body.classList.add("modal-open");
-    var closeBtn = modal.querySelector(".printer-modal-close");
-    if (closeBtn) closeBtn.focus();
+    if (!keepFocus) {
+      var dialog = modal.querySelector(".printer-modal-dialog");
+      if (dialog) {
+        dialog.setAttribute("tabindex", "-1");
+        dialog.focus();
+      }
+    }
+  }
+
+  function stepModal(dir) {
+    go(active + dir);
+    openModal(cards[active], true);
   }
 
   function closeModal() {
@@ -190,36 +235,49 @@
   dots.forEach(function (dot) {
     dot.addEventListener("click", function () { go(Number(dot.getAttribute("data-go"))); startIdle(); });
   });
-  cards.forEach(function (card) {
-    card.addEventListener("click", function () {
-      if (moved) return;
-      var i = Number(card.getAttribute("data-index"));
-      if (i !== active) go(i);
-      openModal(card);
-    });
-  });
 
   stage.addEventListener("keydown", function (e) {
     if (e.key === "ArrowRight") { e.preventDefault(); go(active + 1); startIdle(); }
     if (e.key === "ArrowLeft")  { e.preventDefault(); go(active - 1); startIdle(); }
   });
 
-  var startX = 0, dragging = false, moved = false;
+  var startX = 0, dragging = false;
+  function cardAtClientX(clientX) {
+    var rect = stage.getBoundingClientRect();
+    var x = clientX - (rect.left + rect.width / 2);
+    var step = window.innerWidth < 640 ? 118 : 152;
+    var bestI = active;
+    var bestD = Infinity;
+    for (var i = 0; i < n; i++) {
+      var off = wrapDelta(i);
+      if (Math.abs(off) > 2) continue;
+      var dist = Math.abs(x - off * step);
+      if (dist < bestD) { bestD = dist; bestI = i; }
+    }
+    return cards[bestI];
+  }
   stage.addEventListener("pointerdown", function (e) {
-    dragging = true; moved = false; startX = e.clientX;
+    if (e.button && e.button !== 0) return;
+    dragging = true;
+    startX = e.clientX;
     try { stage.setPointerCapture(e.pointerId); } catch (err) {}
     stopIdle();
-  });
-  stage.addEventListener("pointermove", function (e) {
-    if (!dragging) return;
-    if (Math.abs(e.clientX - startX) > 12) moved = true;
   });
   stage.addEventListener("pointerup", function (e) {
     if (!dragging) return;
     dragging = false;
     var dx = e.clientX - startX;
-    if (dx > 40) go(active - 1);
-    else if (dx < -40) go(active + 1);
+    if (dx > 70) { go(active - 1); startIdle(); }
+    else if (dx < -70) { go(active + 1); startIdle(); }
+    else {
+      var card = cardAtClientX(e.clientX);
+      var i = Number(card.getAttribute("data-index"));
+      if (i !== active) go(i);
+      openModal(cards[active]);
+    }
+  });
+  stage.addEventListener("pointercancel", function () {
+    dragging = false;
     startIdle();
   });
 
@@ -269,10 +327,20 @@
     modal.querySelectorAll("[data-modal-close]").forEach(function (el) {
       el.addEventListener("click", closeModal);
     });
+    modal.querySelectorAll("[data-modal-dir]").forEach(function (btn) {
+      if (n < 2) btn.hidden = true;
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        stepModal(Number(btn.getAttribute("data-modal-dir")));
+      });
+    });
   }
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") closeModal();
-  });
+    if (!modal || modal.hidden) return;
+    if (e.key === "Escape") { e.preventDefault(); closeModal(); return; }
+    if (e.key === "ArrowLeft" || e.code === "ArrowLeft") { e.preventDefault(); stepModal(-1); }
+    if (e.key === "ArrowRight" || e.code === "ArrowRight") { e.preventDefault(); stepModal(1); }
+  }, true);
 
   layout();
 })();

@@ -14,8 +14,11 @@
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,.07);
       padding: 1.5rem;
-      max-width: 480px;
+      max-width: 560px;
     }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+    @media (max-width: 520px) { .row { grid-template-columns: 1fr; } }
+    .checks { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem 1rem; margin-bottom: 1rem; }
 
     .field { display: flex; flex-direction: column; gap: .3rem; margin-bottom: 1rem; }
     label  { font-size: .85rem; font-weight: 600; }
@@ -98,9 +101,47 @@
     </div>
 
     <div class="field">
-      <label for="description">Описание в модальном окне</label>
+      <label for="description">Описание (преимущества модели)</label>
       <textarea id="description" name="description" rows="4" maxlength="2000"
-                placeholder="Кратко: чем удобна модель, какой картридж, что чиним"><%= printer.description || '' %></textarea>
+                placeholder="Чем удобна модель, для кого, какой картридж, что чиним"><%= printer.description || '' %></textarea>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="paper_format">Формат бумаги</label>
+        <input id="paper_format" name="paper_format" type="text" value="<%= printer.paper_format || '' %>" placeholder="A4" />
+      </div>
+      <div class="field">
+        <label for="print_speed_ppm">Скорость, стр/мин</label>
+        <input id="print_speed_ppm" name="print_speed_ppm" type="number" min="0" step="0.1" value="<%= printer.print_speed_ppm != null ? printer.print_speed_ppm : '' %>" />
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="resolution_dpi">Разрешение печати</label>
+        <input id="resolution_dpi" name="resolution_dpi" type="text" value="<%= printer.resolution_dpi || '' %>" placeholder="1200×1200" />
+      </div>
+      <div class="field">
+        <label for="release_year">Год модели</label>
+        <input id="release_year" name="release_year" type="number" min="1990" max="2100" value="<%= printer.release_year || '' %>" />
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="cartridge_note">Картридж</label>
+        <input id="cartridge_note" name="cartridge_note" type="text" value="<%= printer.cartridge_note || '' %>" placeholder="85A / CE285A" />
+      </div>
+      <div class="field">
+        <label for="scan_resolution_dpi">Разрешение сканера</label>
+        <input id="scan_resolution_dpi" name="scan_resolution_dpi" type="text" value="<%= printer.scan_resolution_dpi || '' %>" placeholder="для МФУ" />
+      </div>
+    </div>
+    <div class="checks">
+      <label class="check"><input type="checkbox" name="is_usb" <%= printer.is_usb ? 'checked' : '' %> /> USB</label>
+      <label class="check"><input type="checkbox" name="is_wifi" <%= printer.is_wifi ? 'checked' : '' %> /> Wi‑Fi</label>
+      <label class="check"><input type="checkbox" name="is_ethernet" <%= printer.is_ethernet ? 'checked' : '' %> /> Ethernet</label>
+      <label class="check"><input type="checkbox" name="is_duplex" <%= printer.is_duplex ? 'checked' : '' %> /> Дуплекс</label>
+      <label class="check"><input type="checkbox" name="has_adf" <%= printer.has_adf ? 'checked' : '' %> /> ADF (автоподатчик)</label>
     </div>
 
     <label class="field check">
