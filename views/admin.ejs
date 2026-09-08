@@ -183,18 +183,34 @@
 <!-- ── Услуги ── -->
 <div class="card">
   <h2>Услуги</h2>
+  <p class="hint">
+    Клик по строке на главной открывает карточку услуги: фото детали сверху, описание ниже.
+    Фото лучше снять с детали в мастерской. Чтобы картинка уехала с кодом, положите файл в
+    <code>assets/services/</code> с именем из колонки «файл».
+    Загрузка через форму остаётся только на этом сервере (<code>public/service-photos/</code>, в git не попадает).
+  </p>
 
   <% if (services.length === 0) { %>
     <p class="empty">Нет услуг. Добавьте первую.</p>
   <% } else { %>
     <table>
-      <thead><tr><th>#</th><th>Название</th><th>Цена, ₽</th><th></th></tr></thead>
+      <thead><tr><th>Фото</th><th>Название</th><th>Цена, ₽</th><th>Файл</th><th></th></tr></thead>
       <tbody>
         <% services.forEach(function(s) { %>
           <tr>
-            <td><%= s.id %></td>
+            <td>
+              <% if (s.imageUrl) { %>
+                <img class="thumb" src="<%= s.imageUrl %>" alt="" />
+              <% } else { %>
+                <span class="thumb-empty">нет</span>
+              <% } %>
+              <form class="photo-upload" method="POST" action="/admin/services/<%= s.id %>/photo" enctype="multipart/form-data" style="margin-top:.35rem">
+                <input name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onchange="this.form.submit()" />
+              </form>
+            </td>
             <td><%= s.name %></td>
             <td><%= s.price %></td>
+            <td class="file-name"><%= s.imageFile %></td>
             <td style="display:flex;gap:.4rem;align-items:center">
               <a class="btn-edit" href="/admin/services/<%= s.id %>/edit">Изменить</a>
               <form class="inline" method="POST" action="/admin/services/<%= s.id %>/delete">

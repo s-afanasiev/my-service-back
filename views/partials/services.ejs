@@ -3,12 +3,109 @@
     <div class="empty-state">Услуги пока не добавлены.</div>
   <% } else { %>
     <ul class="services">
-      <% services.forEach(function(s) { %>
-        <li class="service-card">
-          <span class="service-name"><%- s.name %></span>
+      <% services.forEach(function(s, i) { %>
+        <li class="service-card"
+            tabindex="0"
+            role="button"
+            data-service-card
+            data-index="<%= i %>"
+            aria-haspopup="dialog">
+          <span class="service-name"><%= s.name %></span>
           <span class="service-price"><%= s.priceFormatted %></span>
+          <div class="service-art" hidden aria-hidden="true">
+            <% if (s.imageUrl) { %>
+              <img src="<%= s.imageUrl %>" alt="" width="600" height="400" loading="lazy" decoding="async" />
+            <% } else { %>
+              <%- include('service-art', { kind: s.kind }) %>
+            <% } %>
+          </div>
+          <p class="service-desc" hidden><%= s.description %></p>
         </li>
       <% }); %>
     </ul>
   <% } %>
 </section>
+
+<% if (services.length) { %>
+<div class="service-modal" data-service-modal hidden>
+  <div class="service-modal-backdrop" data-service-close></div>
+  <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="service-modal-title">
+    <button type="button" class="service-modal-close" data-service-close aria-label="Закрыть">×</button>
+    <div class="service-modal-photo" data-service-photo></div>
+    <div class="service-modal-head">
+      <h3 id="service-modal-title" data-service-title></h3>
+      <span class="service-modal-price" data-service-price></span>
+    </div>
+    <div class="service-modal-desc-block">
+      <h4>Описание</h4>
+      <p class="service-modal-desc" data-service-desc></p>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var cards = [].slice.call(document.querySelectorAll("[data-service-card]"));
+  var modal = document.querySelector("[data-service-modal]");
+  if (!cards.length || !modal) return;
+
+  function textOf(el, sel) {
+    var node = el.querySelector(sel);
+    return node ? node.textContent.replace(/^\s+|\s+$/g, "") : "";
+  }
+
+  function openModal(card) {
+    var photo = modal.querySelector("[data-service-photo]");
+    photo.innerHTML = "";
+    var srcImg = card.querySelector(".service-art img");
+    var srcArt = card.querySelector(".service-art");
+    if (srcImg) {
+      var img = srcImg.cloneNode(true);
+      img.removeAttribute("width");
+      img.removeAttribute("height");
+      img.removeAttribute("hidden");
+      photo.appendChild(img);
+    } else if (srcArt) {
+      var clone = srcArt.cloneNode(true);
+      clone.hidden = false;
+      clone.removeAttribute("hidden");
+      photo.appendChild(clone);
+    }
+    modal.querySelector("[data-service-title]").textContent = textOf(card, ".service-name");
+    modal.querySelector("[data-service-price]").textContent = textOf(card, ".service-price");
+    modal.querySelector("[data-service-desc]").textContent = textOf(card, ".service-desc");
+    modal.hidden = false;
+    document.body.classList.add("modal-open");
+    var dialog = modal.querySelector(".service-modal-dialog");
+    if (dialog) {
+      dialog.setAttribute("tabindex", "-1");
+      dialog.focus();
+    }
+  }
+
+  function closeModal() {
+    if (!modal || modal.hidden) return;
+    modal.hidden = true;
+    document.body.classList.remove("modal-open");
+  }
+
+  cards.forEach(function (card) {
+    card.addEventListener("click", function () { openModal(card); });
+    card.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openModal(card);
+      }
+    });
+  });
+
+  modal.querySelectorAll("[data-service-close]").forEach(function (el) {
+    el.addEventListener("click", closeModal);
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (!modal || modal.hidden) return;
+    if (e.key === "Escape") { e.preventDefault(); closeModal(); }
+  });
+})();
+</script>
+<% } %>

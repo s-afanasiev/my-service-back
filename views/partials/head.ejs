@@ -76,6 +76,8 @@
     background-repeat: repeat;
   }
 
+  body.modal-open { overflow: hidden; }
+
   /* ── общий контейнер ── */
   .container {
     max-width: 760px;
@@ -164,8 +166,11 @@
     justify-content: space-between;
     gap: 1rem;
     transition: transform .15s, box-shadow .15s;
+    cursor: pointer;
   }
   .service-card:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,.1); }
+  .service-card:focus { outline: none; }
+  .service-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   .service-name  { font-size: 1rem; font-weight: 500; }
   .service-price {
     white-space: nowrap;
@@ -175,6 +180,146 @@
     background: #eff6ff;
     padding: .3rem .8rem;
     border-radius: 8px;
+  }
+
+  .service-svg { width: 148px; height: 94px; }
+  .service-svg .svc-bg { fill: #e8eef8; }
+
+  .service-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    padding: 2vh 1rem;
+  }
+  .service-modal[hidden] { display: none !important; }
+  .service-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, .46);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+  .service-modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: 70vw;
+    height: 90vh;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, .28);
+    padding: 1.15rem 1.35rem 1.1rem;
+  }
+  .service-modal-dialog:focus { outline: none; }
+  .service-modal-close {
+    position: absolute;
+    top: .65rem;
+    left: .65rem;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .service-modal-close:hover { background: #e2e8f0; }
+  .service-modal-photo {
+    flex: 0 0 400px;
+    height: 400px;
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 0 .7rem;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #f8fafc;
+  }
+  .service-modal-photo .service-art {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+  }
+  .service-modal-photo img,
+  .service-modal-photo .service-art img {
+    width: auto !important;
+    height: auto !important;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    object-position: center;
+    background: transparent;
+    flex: 0 1 auto;
+    min-width: 0;
+    min-height: 0;
+  }
+  .service-modal-photo .service-svg { width: min(560px, 92%); height: auto; }
+  .service-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0 0 .55rem;
+  }
+  .service-modal-dialog h3 {
+    margin: 0;
+    font-size: 1.45rem;
+    font-weight: 700;
+    letter-spacing: -.3px;
+    line-height: 1.25;
+    flex: 1 1 auto;
+  }
+  .service-modal-price {
+    white-space: nowrap;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--primary);
+    background: #eff6ff;
+    padding: .3rem .8rem;
+    border-radius: 8px;
+  }
+  .service-modal-dialog h4 {
+    margin: 0 0 .4rem;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .service-modal-desc-block {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .service-modal-desc {
+    font-size: .98rem;
+    line-height: 1.55;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    color: var(--text);
+    white-space: pre-wrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  .service-modal-desc:empty::after {
+    content: "Описание пока не заполнено.";
+    color: var(--muted);
   }
 
   .empty-state {
@@ -607,6 +752,21 @@
     .printer-modal-nav.is-prev { left: 6px; }
     .printer-modal-nav.is-next { right: 6px; }
     .printer-modal-nav svg { width: 26px; height: 26px; }
+    .service-modal { padding: .35rem; }
+    .service-modal-dialog {
+      width: calc(100vw - .7rem);
+      height: 96vh;
+      max-height: 96vh;
+      height: 96dvh;
+      max-height: 96dvh;
+      padding: .95rem .9rem .85rem;
+      border-radius: 12px;
+    }
+    .service-modal-photo {
+      flex: 0 0 220px;
+      height: 220px;
+    }
+    .service-modal-dialog h3 { font-size: 1.2rem; }
   }
 
   /* ── подвал ── */

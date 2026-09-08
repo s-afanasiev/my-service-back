@@ -159,7 +159,7 @@
   function startIdle() {
     stopIdle();
     if (reduce || n < 2) return;
-    if (modal && !modal.hidden) return;
+    if (document.body.classList.contains("modal-open")) return;
     timer = setInterval(function () { go(active + 1); }, 4500);
   }
 

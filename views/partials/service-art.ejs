@@ -1,0 +1,45 @@
+<svg class="service-svg is-<%= kind %>" viewBox="0 0 200 128" fill="none" aria-hidden="true">
+  <rect class="svc-bg" x="8" y="10" width="184" height="108" rx="14" />
+  <% if (kind === 'drum') { %>
+    <ellipse cx="100" cy="64" rx="62" ry="28" fill="#334155" />
+    <ellipse cx="100" cy="58" rx="62" ry="28" fill="#64748b" />
+    <ellipse cx="100" cy="54" rx="50" ry="18" fill="#94a3b8" />
+    <rect x="38" y="52" width="124" height="10" rx="4" fill="#1e293b" opacity=".35" />
+  <% } else if (kind === 'pickup') { %>
+    <rect x="36" y="78" width="128" height="10" rx="3" fill="#cbd5e1" />
+    <ellipse cx="100" cy="62" rx="40" ry="22" fill="#1e293b" />
+    <ellipse cx="100" cy="58" rx="40" ry="22" fill="#475569" />
+    <path d="M64 58c10-10 62-10 72 0" stroke="#94a3b8" stroke-width="3" fill="none" />
+  <% } else if (kind === 'fuser') { %>
+    <rect x="30" y="44" width="140" height="44" rx="10" fill="#475569" />
+    <rect x="38" y="52" width="124" height="12" rx="6" fill="#f8fafc" />
+    <rect x="38" y="70" width="124" height="10" rx="5" fill="#1e293b" />
+    <circle cx="48" cy="40" r="5" fill="#f97316" />
+  <% } else if (kind === 'charge') { %>
+    <rect x="28" y="58" width="144" height="14" rx="7" fill="#334155" />
+    <rect x="32" y="54" width="136" height="10" rx="5" fill="#64748b" />
+    <circle cx="44" cy="59" r="8" fill="#94a3b8" />
+    <circle cx="156" cy="59" r="8" fill="#94a3b8" />
+  <% } else if (kind === 'controller' || kind === 'board') { %>
+    <rect x="34" y="28" width="132" height="76" rx="8" fill="#166534" />
+    <rect x="46" y="40" width="28" height="20" rx="3" fill="#22c55e" />
+    <rect x="82" y="40" width="48" height="14" rx="2" fill="#14532d" />
+    <circle cx="148" cy="48" r="6" fill="#fbbf24" />
+    <circle cx="52" cy="78" r="4" fill="#94a3b8" />
+    <circle cx="68" cy="78" r="4" fill="#94a3b8" />
+    <circle cx="84" cy="78" r="4" fill="#94a3b8" />
+  <% } else if (kind === 'waste') { %>
+    <path d="M58 38h84l8 56H50l8-56z" fill="#334155" />
+    <path d="M66 50h68" stroke="#94a3b8" stroke-width="4" />
+    <rect x="70" y="62" width="60" height="22" rx="4" fill="#64748b" />
+  <% } else if (kind === 'refill' || kind === 'compatible' || kind === 'cartridge') { %>
+    <rect x="40" y="40" width="120" height="52" rx="10" fill="#1e293b" />
+    <rect x="48" y="48" width="72" height="36" rx="6" fill="#334155" />
+    <circle cx="140" cy="66" r="12" fill="#64748b" />
+    <rect x="56" y="56" width="40" height="8" rx="2" fill="#94a3b8" />
+  <% } else { %>
+    <rect x="58" y="36" width="84" height="60" rx="10" fill="#334155" />
+    <circle cx="100" cy="66" r="16" fill="#64748b" />
+    <path d="M100 54v24M88 66h24" stroke="#e2e8f0" stroke-width="3" />
+  <% } %>
+</svg>

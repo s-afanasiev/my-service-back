@@ -11,8 +11,10 @@ const app  = express();
 const PORT = 3001;
 
 const FEATURED_MAX = 8;
-const featuredDir       = path.join(__dirname, "public", "featured");
-const assetsPrintersDir = path.join(__dirname, "assets", "printers");
+const featuredDir        = path.join(__dirname, "public", "featured");
+const servicesUploadDir  = path.join(__dirname, "public", "service-photos");
+const assetsPrintersDir  = path.join(__dirname, "assets", "printers");
+const assetsServicesDir  = path.join(__dirname, "assets", "services");
 const IMAGE_EXT    = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif" };
 const IMAGE_EXTS   = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
 const DEVICE_TYPES = new Set(["printer", "mfp"]);
@@ -81,6 +83,102 @@ const FEATURED_DETAILS = {
   },
 };
 
+const SERVICE_DETAILS = {
+  "замена ролика захвата": {
+    description:
+      "Ролик захвата (pickup roller) — резиновый валик в лотке, который «подхватывает» верхний лист и отправляет его в тракт печати.\n\n" +
+      "Зачем он нужен. Без него бумага не заходит в принтер: двигатель крутится, а лист остаётся в лотке или затягивается криво.\n\n" +
+      "Как часто ломается. Резина дубеет, заполировывается и покрывается бумажной пылью. На домашних аппаратах это обычно 30–60 тысяч страниц, в офисе — раньше, если печатают плотной бумагой или картоном. Типичные симптомы: принтер «жуёт воздух», берёт сразу два листа, косит лист, выдаёт замятие на входе.\n\n" +
+      "Какие бывают. На массовых моделях HP, Canon, Brother, Samsung, Xerox, Pantum ролик — отдельная недорогая деталь; иногда стоит в сборе с тормозной площадкой (pad). Оригинал, совместимый (CET, Hi-Black и др.) или восстановленный — для этой детали разница невелика, важнее свежая резина.\n\n" +
+      "Что полезно знать. Часто вместе с роликом меняют площадку отделения: если она лысая, снова будут двойные захваты. После замены уходит большая часть «вечных» замятий на входе.",
+  },
+  "замена фотобарабана": {
+    description:
+      "Фотобарабан (OPC drum) — алюминиевый цилиндр с светочувствительным покрытием. На нём формируется скрытое изображение, которое потом переносится на бумагу тонером.\n\n" +
+      "Зачем он нужен. Это «сердце» лазерного картриджа и многих аппаратов с отдельным драм-юнитом (Brother, часть Xerox/Lexmark). От его состояния зависят чёткость, фон и чёрные точки.\n\n" +
+      "Как часто ломается. Покрытие стирается, царапается бумагой и твёрдыми частицами. Ресурс барабана обычно больше, чем у заправки: 8–20 тысяч страниц на совмещённых картриджах HP/Canon и 12–30 тысяч на отдельных драм-юнитах Brother. Симптомы: повторяющиеся точки или полосы по кругу барабана, серый фон, бледная печать с одной стороны, «отпечаток» предыдущей страницы.\n\n" +
+      "Какие бывают. Барабаны делают Mitsubishi, Fuji, AEG и десятки совместимых брендов. Для HP 85A/725/106A барабан стоит внутри картриджа; у Brother TN + DR — это отдельный узел.\n\n" +
+      "Что полезно знать. Царапина на барабане не «заживает»: помогает только замена. После установки нового барабана часто сразу виден контраст — исчезают точки, которые чисткой лезвия не убрать.",
+  },
+  "заправка картриджа": {
+    description:
+      "Заправка — это разбор картриджа, засыпка тонера, чистка бункера отработки и проверка узлов: лезвия, уплотнений, чипа при необходимости.\n\n" +
+      "Зачем это нужно. Оригинальный картридж на массовых лазерниках стоит в разы дороже заправки, а корпус и фотобарабан ещё живы 2–5 циклов. Для дома и небольшого офиса это основной способ снизить цену страницы.\n\n" +
+      "Как часто делается. После каждого сообщения «картридж пуст» или когда печать стала бледной. На HP 85A / Canon 725 обычно 1,5–2 тысячи страниц на заправку; офисные модели — больше. Если барабан уже в точках или течёт тонер — нужна не только заправка, а восстановление.\n\n" +
+      "Какие тонеры бывают. Для каждого семейства свой химический состав: HP/Canon, Brother, Samsung MLT, Xerox, Pantum. Сырьё Static Control, Mitsubishi, CET и другие. «Универсальный тонер во все картриджи» почти всегда даёт фон и сыпь.\n\n" +
+      "Что полезно знать. После заправки на части моделей нужно сбросить счётчик (чип или механический флажок). Гарантия на заправку обычно — до первой закончившейся страницы или фиксированный срок; если сразу серый фон — это чаще барабан или лезвие, а не «плохой тонер».",
+  },
+  "ремонт термоблока": {
+    description:
+      "Термоблок (печка, fuser) закрепляет тонер на бумаге: нагревательный элемент (термоплёнка или тефлоновый вал) плюс резиновый прижимной вал.\n\n" +
+      "Зачем он нужен. Без нормальной температуры и прижима тонер осыпается, страницы мажутся пальцем, бумага мнётся на выходе.\n\n" +
+      "Как часто ломается. Это один из самых нагруженных узлов: 50–150 тысяч страниц в зависимости от модели. Домашние HP P1102 / Canon LBP6030 / Brother HL-1110 живут меньше, если печатать этикетки, плёнку или мятые листы. Симптомы: замятие на выходе, морщины, блеск полосами, ошибка температуры, запах гари, чёрные полосы, которые не относятся к барабану.\n\n" +
+      "Какие бывают. На компактных лазерниках чаще термоплёнка + лампа или керамика; на офисных — тефлоновый вал. Плёнки и валы есть оригинал и совместимые (CET, JPN и др.). Иногда достаточно плёнки и термосмазки, иногда меняют узел целиком.\n\n" +
+      "Что полезно знать. Не стоит снимать замятие металлическими предметами — плёнка рвётся сразу. После ремонта печки печать должна быть глянцевой, без осыпания, и без повторных замятий на выходе.",
+  },
+  "замена вала заряда": {
+    description:
+      "Вал заряда (PCR, primary charge roller) равномерно заряжает поверхность фотобарабана перед экспозицией лазером.\n\n" +
+      "Зачем он нужен. Если заряд «рваный», на странице появляется фон, пятна, полосы или бледные участки, хотя тонера ещё достаточно.\n\n" +
+      "Как часто ломается. Резина вала стареет, покрывается плёнкой тонера и бумажной пыли, иногда пробивается высоковольтом. Обычно его меняют вместе с 2–4 заправкой или когда после заправки остаётся серый фон. На дешёвых картриджах HP/Canon это расходник внутри картриджа, не отдельная «поломка принтера».\n\n" +
+      "Какие бывают. Оригинальные PCR и совместимые (SCC, CET). Диаметр и сопротивление должны совпадать с моделью картриджа: вал «от другого HP» часто даёт фон или пробой.\n\n" +
+      "Что полезно знать. Иногда вал достаточно промыть изопропилом — если резина ещё эластичная. Если есть кольцевые прогары или он «дубовый», помогает только замена. Часто фон снимается связкой «новый PCR + чистое дозирующее лезвие».",
+  },
+  "ремонт контроллера": {
+    description:
+      "Контроллер (форматтер, главная логика) — плата, которая принимает задание с компьютера, управляет лазером, двигателями и панелью.\n\n" +
+      "Зачем он нужен. Это «мозг» аппарата. Без него принтер не стартует, не видит USB, циклит индикаторы или пишет ошибку прошивки.\n\n" +
+      "Как часто ломается. Реже механики, но встречается после скачков напряжения, грозы, плохих БП и пролитой жидкости. Ещё типичный случай — сгоревший USB-порт или «зависшая» прошивка после неудачного обновления. На старых HP/Canon контроллер ещё ремонтопригоден заменой стабилизаторов и мосфетов; на новых часто проще плата целиком.\n\n" +
+      "Какие бывают. Форматтер жёстко привязан к модели и ревизии. Плата от «похожего» LaserJet может не подойти из‑за прошивки и разъёмов. Иногда отдельно меняют DC-controller (силовая логика двигателей), а не сетевой форматтер.\n\n" +
+      "Что полезно знать. Перед ремонтом проверяем блок питания и шлейфы — «мёртвый» принтер часто оказывается БП, а не контроллером. После ремонта сохраняются настройки сети, если это был не полный обмен платой.",
+  },
+  "картридж неоригинальный": {
+    description:
+      "Совместимый (неоригинальный) картридж — готовый расходник под ту же модель, что и оригинал HP, Canon, Brother, Samsung, Xerox, Pantum, но от другого производителя.\n\n" +
+      "Зачем его берут. Цена обычно в 2–4 раза ниже оригинала. Для черновиков, накладных и внутренней печати этого достаточно. Для договора «печатать только оригиналом» он не подходит.\n\n" +
+      "Насколько это надёжно. Качество сильно зависит от сборки: нормальный совместимый (Static Control, Hi-Black, NV Print, Colouring, профильные заводы) даёт ресурс, близкий к заявленному. Дешёвый безымянный часто сыплет тонер, даёт фон и убивает печку.\n\n" +
+      "Какие бывают. Полный аналог «из коробки», восстановленный оригинал (используется родной корпус и барабан) и «совместимый под заправку». Для Brother отдельно смотрим пару тонер + драм.\n\n" +
+      "Что полезно знать. На части HP с чипом принтер будет писать «неоригинал» — печать при этом обычно идёт. Если нужна максимальная предсказуемость, лучше заправлять проверенный оригинал, чем брать самый дешёвый новый совместимый.",
+  },
+  "замена платы": {
+    description:
+      "Замена платы — это установка новой или рабочей б/у электроники вместо сгоревшей: форматтер, DC-controller, высоковольтный блок, плата панели, сетевой модуль.\n\n" +
+      "Зачем это нужно. Когда ремонт на компонентном уровне нецелесообразен (многослойная плата, залитие, выгоревшая дорожка) или запчасть дешевле часа диагностики с микросхемами.\n\n" +
+      "Как часто требуется. Не ежедневная услуга, но типична после скачка 220 В, сгоревшего узла печки, который «утянул» силовую плату, и после механического повреждения шлейфа. Симптомы: нет реакции на питание, ошибка конкретного узла при живой механике, нет изображения при вращении двигателя.\n\n" +
+      "Какие бывают. Важно совпадение модели, ревизии и прошивки. На МФУ иногда отдельно меняют плату сканера. Б/у плата с той же ревизии часто работает годами; «новая с рынка» без проверки может быть перемаркировкой.\n\n" +
+      "Что полезно знать. Цена услуги выше заправки именно из‑за стоимости самой платы. Перед заменой имеет смысл убедиться, что виновата электроника, а не термопредохранитель печки или кабель панели — эти мелочи имитируют «мёртвую плату».",
+  },
+  "чистка бункера отработки": {
+    description:
+      "Бункер отработки — отсек картриджа, куда счищается неиспользованный тонер с фотобарабана лезвием очистки (wiper blade).\n\n" +
+      "Зачем чистить. На заправках его обязаны опустошать. Если этого не делать, отработка набивается, выдавливается через уплотнения и сыплется в принтер — чёрные пятна, грязные края листа, тонер внутри корпуса.\n\n" +
+      "Как часто нужно. Каждую заправку. На отдельном драм-юните Brother бункер живёт весь ресурс барабана, но при переполнении тоже течёт. Если картридж заправляли «на коленке» и не чистили отработку — типичная жалоба через 200–400 страниц.\n\n" +
+      "Что внутри. Отработка — это уже спечённый и загрязнённый тонер, его нельзя сыпать обратно в бункер подачи. Лезвие очистки и уплотнители при чистке осматривают: надрыв лезвия даёт вертикальную чёрную полосу.\n\n" +
+      "Что полезно знать. После чистки и правильной заправки сыпь обычно прекращается. Если тонер уже насыпался в шестерни и печку, одной чистки картриджа мало — нужна чистка тракта принтера. Не стоит вытряхивать отработку дома над мусоркой: мелкая пыль плохо смывается и вредна при вдыхании.",
+  },
+  "замена ролика подачи": {
+    description:
+      "Ролик подачи стоит дальше по тракту, чем ролик захвата: он протягивает лист к регистрационному узлу и дальше к барабану.\n\n" +
+      "Типичные симптомы — лист заходит в щель лотка и останавливается, косится, рвётся на входе. Резина стареет так же, как на ролике захвата. Часто меняют парой.",
+  },
+  "замена ролика натяжителя": {
+    description:
+      "Ролик натяжителя/тормозной узел удерживает стопку, чтобы в тракт уходил один лист. Износ даёт двойной захват и замятия. Обычно меняется вместе с роликом захвата и площадкой отделения.",
+  },
+  "замена лотка": {
+    description:
+      "Лоток бумаги направляет стопку к роликам. Трещины защёлок, сломанные уголки формата и просевшая площадка дают перекос и замятия. На компактных HP/Canon лоток — отдельная пластиковая деталь, которую проще заменить, чем клеить.",
+  },
+  "прошивка чипа": {
+    description:
+      "Чип на картридже хранит счётчик страниц и признак «оригинал». После заправки принтер может считать картридж пустым. Прошивка или замена чипа сбрасывает счётчик. Нужна не всем моделям: на части HP достаточно механического флажка, на Brother — своего чипа DR/TN.",
+  },
+  "замена корпуса": {
+    description:
+      "Корпус картриджа или внешние панели принтера меняют при трещинах, сломанных защёлках и выработках посадочных мест барабана. Трещина корпуса — частая причина утечки тонера даже у свежезаправленного картриджа.",
+  },
+};
+
 // ── Пул соединений PostgreSQL ─────────────────────────────────────────────────
 const pool = new Pool({
   host:     process.env.DB_HOST     || "localhost",
@@ -126,6 +224,8 @@ async function initDB() {
     scan_resolution_dpi  VARCHAR(50),
     cartridge_note       VARCHAR(150)
   )`);
+  await pool.query(`ALTER TABLE services ADD COLUMN IF NOT EXISTS description TEXT`);
+  await pool.query(`ALTER TABLE services ADD COLUMN IF NOT EXISTS image_filename VARCHAR(255)`);
   await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS description TEXT`);
   await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS paper_format VARCHAR(20)`);
   await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS print_speed_ppm NUMERIC(5,1)`);
@@ -139,7 +239,9 @@ async function initDB() {
   await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS scan_resolution_dpi VARCHAR(50)`);
   await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS cartridge_note VARCHAR(150)`);
   fs.mkdirSync(featuredDir, { recursive: true });
+  fs.mkdirSync(servicesUploadDir, { recursive: true });
   fs.mkdirSync(assetsPrintersDir, { recursive: true });
+  fs.mkdirSync(assetsServicesDir, { recursive: true });
   const { rows: countRows } = await pool.query("SELECT COUNT(*)::int AS n FROM featured_printers");
   if (countRows[0].n === 0) {
     for (let i = 0; i < FEATURED_SEED.length; i++) {
@@ -153,6 +255,7 @@ async function initDB() {
     }
   }
   await fillFeaturedDetails();
+  await fillServiceDetails();
 }
 
 // ── Вспомогательные функции ───────────────────────────────────────────────────
@@ -252,13 +355,24 @@ async function fillFeaturedDetails() {
   }
 }
 
+const RU_SLUG = {
+  а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z",
+  и: "i", й: "j", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r",
+  с: "s", т: "t", у: "u", ф: "f", х: "h", ц: "c", ч: "ch", ш: "sh", щ: "sch",
+  ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
+};
+
 function slugPart(s) {
   return String(s || "")
     .trim()
     .toLowerCase()
-    .replace(/ё/g, "e")
+    .replace(/[а-яё]/g, function (ch) { return RU_SLUG[ch] || ""; })
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function normName(s) {
+  return String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function printerSlug(brand, model) {
@@ -335,6 +449,78 @@ function mapFeatured(row) {
   };
 }
 
+function serviceKind(name) {
+  const n = normName(name);
+  if (/ролик/.test(n)) return "pickup";
+  if (/фотобарабан|барабан/.test(n)) return "drum";
+  if (/заправк/.test(n)) return "refill";
+  if (/термоблок|печк/.test(n)) return "fuser";
+  if (/вал заряда|заряд/.test(n)) return "charge";
+  if (/контроллер/.test(n)) return "controller";
+  if (/неоригинал|совместим/.test(n)) return "compatible";
+  if (/плат/.test(n)) return "board";
+  if (/бункер|отработк/.test(n)) return "waste";
+  if (/лотк/.test(n)) return "tray";
+  if (/чип/.test(n)) return "chip";
+  if (/корпус/.test(n)) return "body";
+  if (/картридж/.test(n)) return "cartridge";
+  return "generic";
+}
+
+function findDirFile(dir, stem) {
+  const hyphen = firstExisting(dir, stem);
+  if (hyphen) return hyphen;
+  return firstExisting(dir, stem.replace(/-/g, "_"));
+}
+
+function resolveServiceImage(row) {
+  const slug = slugPart(row.name) || ("service-" + row.id);
+  if (row.image_filename && fs.existsSync(path.join(servicesUploadDir, row.image_filename))) {
+    return { url: "/service-photos/" + row.image_filename, source: "upload", slug, file: row.image_filename };
+  }
+  const uploaded = firstExisting(servicesUploadDir, String(row.id));
+  if (uploaded) {
+    return { url: "/service-photos/" + uploaded, source: "upload", slug, file: uploaded };
+  }
+  const asset = findDirFile(assetsServicesDir, slug);
+  if (asset) {
+    return { url: "/assets/services/" + asset, source: "asset", slug, file: asset };
+  }
+  return { url: "", source: "", slug, file: slug.replace(/-/g, "_") + ".jpg" };
+}
+
+function removeServiceImage(filename) {
+  if (!filename) return;
+  const abs = path.join(servicesUploadDir, filename);
+  if (fs.existsSync(abs)) fs.unlinkSync(abs);
+}
+
+function mapService(row) {
+  const image = resolveServiceImage(row);
+  return {
+    ...row,
+    priceFormatted: money.format(row.price),
+    description: row.description || "",
+    imageUrl:    image.url,
+    imageSource: image.source,
+    imageFile:   image.file,
+    slug:        image.slug,
+    kind:        serviceKind(row.name),
+  };
+}
+
+async function fillServiceDetails() {
+  const { rows } = await pool.query("SELECT id, name FROM services");
+  for (const row of rows) {
+    const extra = SERVICE_DETAILS[normName(row.name)];
+    if (!extra) continue;
+    await pool.query(
+      "UPDATE services SET description = COALESCE(description, $1) WHERE id = $2",
+      [extra.description, row.id]
+    );
+  }
+}
+
 function basicAuth(user, pass) {
   return (req, res, next) => {
     const hdr = req.headers.authorization || "";
@@ -384,6 +570,21 @@ const featuredUpload = multer({
   },
 });
 
+const serviceUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, servicesUploadDir),
+    filename: (req, file, cb) => {
+      const ext = IMAGE_EXT[file.mimetype] || ".jpg";
+      cb(null, `${req.params.id}${ext}`);
+    },
+  }),
+  limits: { fileSize: 4 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (IMAGE_EXT[file.mimetype]) cb(null, true);
+    else cb(new Error("Только изображения (jpg, png, webp, gif)"));
+  },
+});
+
 // ── Express настройки ─────────────────────────────────────────────────────────
 app.use("/assets", express.static(path.join(__dirname, "assets")));
 app.use(express.static(path.join(__dirname, "public")));
@@ -419,7 +620,7 @@ app.get("/", async (req, res) => {
       heading:     "Ремонт оргтехники и заправка картриджей",
       subheading:  "Принтеры, МФУ, копиры — ремонт с гарантией. Заправка и продажа картриджей. Выезд мастера в день обращения.",
       ogImage:     hasHero ? `${SITE_URL}/hero-bg.jpg` : "",
-      services:    services.map(s => ({ ...s, priceFormatted: money.format(s.price) })),
+      services:    services.map(mapService),
       contacts:    contacts.map(c => ({ ...c, textColor: textColorFor(c.color) })),
       featured:    featured.map(mapFeatured),
     });
@@ -456,7 +657,7 @@ if (!adminPass) {
       );
       const hasHero = fs.existsSync(heroPath);
       res.render("admin", {
-        services,
+        services: services.map(mapService),
         contacts,
         hasHero,
         featured: featured.map(mapFeatured),
@@ -473,22 +674,34 @@ if (!adminPass) {
   app.get("/admin/services/:id/edit", auth, async (req, res) => {
     const { rows } = await pool.query("SELECT * FROM services WHERE id = $1", [req.params.id]);
     if (!rows[0]) return res.redirect("/home");
-    const s = rows[0];
-    res.render("edit", {
-      title:  "Услуга",
-      action: `/admin/services/${s.id}/edit`,
-      fields: [
-        { name: "name",  label: "Название", type: "text",   value: s.name },
-        { name: "price", label: "Цена (₽)", type: "number", value: s.price, step: "0.01", min: 0 },
-      ],
-    });
+    res.render("edit-service", { service: mapService(rows[0]) });
   });
 
-  app.post("/admin/services/:id/edit", auth, async (req, res) => {
-    const { name, price } = req.body;
-    if (!name || !price) return res.redirect("/home");
-    await pool.query("UPDATE services SET name = $1, price = $2 WHERE id = $3",
-      [name.trim(), parseFloat(price), req.params.id]);
+  app.post("/admin/services/:id/edit", auth, (req, res, next) => {
+    serviceUpload.single("photo")(req, res, (err) => {
+      if (err) return res.redirect("/home");
+      next();
+    });
+  }, async (req, res) => {
+    const name = String(req.body.name || "").trim();
+    const price = parseFloat(req.body.price);
+    if (!name || !Number.isFinite(price)) return res.redirect("/home");
+    const { rows } = await pool.query("SELECT * FROM services WHERE id = $1", [req.params.id]);
+    if (!rows[0]) return res.redirect("/home");
+
+    let imageFilename = rows[0].image_filename;
+    if (req.file) {
+      if (imageFilename && imageFilename !== req.file.filename) removeServiceImage(imageFilename);
+      imageFilename = req.file.filename;
+    } else if (req.body.remove_photo === "on") {
+      removeServiceImage(imageFilename);
+      imageFilename = null;
+    }
+
+    await pool.query(
+      "UPDATE services SET name = $1, price = $2, description = $3, image_filename = $4 WHERE id = $5",
+      [name, price, String(req.body.description || "").trim().slice(0, 4000), imageFilename, req.params.id]
+    );
     res.redirect("/home");
   });
 
@@ -530,12 +743,32 @@ if (!adminPass) {
   app.post("/admin/services/add", auth, async (req, res) => {
     const { name, price } = req.body;
     if (!name || !price) return res.redirect("/home");
-    await pool.query("INSERT INTO services (name, price) VALUES ($1, $2)",
-      [name.trim(), parseFloat(price)]);
+    const extra = SERVICE_DETAILS[normName(name)];
+    await pool.query("INSERT INTO services (name, price, description) VALUES ($1, $2, $3)",
+      [name.trim(), parseFloat(price), extra ? extra.description : null]);
+    res.redirect("/home");
+  });
+
+  app.post("/admin/services/:id/photo", auth, (req, res, next) => {
+    serviceUpload.single("photo")(req, res, (err) => {
+      if (err) return res.redirect("/home");
+      next();
+    });
+  }, async (req, res) => {
+    if (!req.file) return res.redirect("/home");
+    const { rows } = await pool.query("SELECT image_filename FROM services WHERE id = $1", [req.params.id]);
+    if (!rows[0]) return res.redirect("/home");
+    if (rows[0].image_filename && rows[0].image_filename !== req.file.filename) {
+      removeServiceImage(rows[0].image_filename);
+    }
+    await pool.query("UPDATE services SET image_filename = $1 WHERE id = $2",
+      [req.file.filename, req.params.id]);
     res.redirect("/home");
   });
 
   app.post("/admin/services/:id/delete", auth, async (req, res) => {
+    const { rows } = await pool.query("SELECT image_filename FROM services WHERE id = $1", [req.params.id]);
+    if (rows[0]) removeServiceImage(rows[0].image_filename);
     await pool.query("DELETE FROM services WHERE id = $1", [req.params.id]);
     res.redirect("/home");
   });
