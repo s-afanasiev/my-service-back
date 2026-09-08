@@ -20,6 +20,7 @@
             <% } %>
           </div>
           <p class="service-desc" hidden><%= s.description %></p>
+          <script type="application/json" class="service-panel"><%- JSON.stringify(s.panel || null).replace(/</g, '\\u003c') %></script>
         </li>
       <% }); %>
     </ul>
@@ -31,7 +32,10 @@
   <div class="service-modal-backdrop" data-service-close></div>
   <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="service-modal-title">
     <button type="button" class="service-modal-close" data-service-close aria-label="Закрыть">×</button>
-    <div class="service-modal-photo" data-service-photo></div>
+    <div class="service-modal-hero is-photo-only" data-service-hero>
+      <div class="service-modal-photo" data-service-photo></div>
+      <div class="service-modal-side" data-service-side hidden></div>
+    </div>
     <div class="service-modal-head">
       <h3 id="service-modal-title" data-service-title></h3>
       <span class="service-modal-price" data-service-price></span>
@@ -48,9 +52,103 @@
   var modal = document.querySelector("[data-service-modal]");
   if (!cards.length || !modal) return;
 
+  var hero = modal.querySelector("[data-service-hero]");
+  var side = modal.querySelector("[data-service-side]");
+  var activePanel = null;
+  var selectedBrand = null;
+
   function textOf(el, sel) {
     var node = el.querySelector(sel);
     return node ? node.textContent.replace(/^\s+|\s+$/g, "") : "";
+  }
+
+  function panelOf(card) {
+    var node = card.querySelector(".service-panel");
+    if (!node) return null;
+    try { return JSON.parse(node.textContent); } catch (err) { return null; }
+  }
+
+  function findBrand(id) {
+    if (!activePanel || !activePanel.items) return null;
+    for (var i = 0; i < activePanel.items.length; i++) {
+      if (activePanel.items[i].id === id) return activePanel.items[i];
+    }
+    return null;
+  }
+
+  function renderBrandList() {
+    selectedBrand = null;
+    side.innerHTML = "";
+    var cap = document.createElement("p");
+    cap.className = "service-brand-caption";
+    cap.textContent = activePanel.title || "Бренды";
+    side.appendChild(cap);
+    var list = document.createElement("div");
+    list.className = "service-brand-list";
+    activePanel.items.forEach(function (item) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "service-brand-chip" + (item.theme ? " is-" + item.theme : "");
+      btn.setAttribute("data-brand-id", item.id);
+      btn.setAttribute("aria-label", item.label || item.id);
+      if (item.logo) {
+        var img = document.createElement("img");
+        img.src = item.logo;
+        img.alt = "";
+        btn.appendChild(img);
+      }
+      var span = document.createElement("span");
+      span.textContent = item.label || item.id;
+      btn.appendChild(span);
+      list.appendChild(btn);
+    });
+    side.appendChild(list);
+  }
+
+  function renderBrandBanner(item) {
+    selectedBrand = item;
+    side.innerHTML = "";
+    var banner = document.createElement("div");
+    banner.className = "service-brand-banner" + (item.theme ? " is-" + item.theme : "");
+    var head = document.createElement("div");
+    head.className = "service-brand-banner-head";
+    var back = document.createElement("button");
+    back.type = "button";
+    back.className = "service-brand-back";
+    back.setAttribute("data-brand-back", "");
+    back.setAttribute("aria-label", "Назад к брендам");
+    back.textContent = "←";
+    head.appendChild(back);
+    if (item.logo) {
+      var logo = document.createElement("img");
+      logo.className = "service-brand-banner-logo";
+      logo.src = item.logo;
+      logo.alt = item.label || "";
+      head.appendChild(logo);
+    }
+    var title = document.createElement("h5");
+    title.textContent = item.label || item.id;
+    head.appendChild(title);
+    var body = document.createElement("p");
+    body.className = "service-brand-banner-text";
+    body.textContent = item.description || "";
+    banner.appendChild(head);
+    banner.appendChild(body);
+    side.appendChild(banner);
+  }
+
+  function renderSide(panel) {
+    activePanel = panel && panel.items && panel.items.length ? panel : null;
+    selectedBrand = null;
+    if (!activePanel) {
+      side.hidden = true;
+      side.innerHTML = "";
+      hero.classList.add("is-photo-only");
+      return;
+    }
+    side.hidden = false;
+    hero.classList.remove("is-photo-only");
+    renderBrandList();
   }
 
   function openModal(card) {
@@ -73,6 +171,7 @@
     modal.querySelector("[data-service-title]").textContent = textOf(card, ".service-name");
     modal.querySelector("[data-service-price]").textContent = textOf(card, ".service-price");
     modal.querySelector("[data-service-desc]").textContent = textOf(card, ".service-desc");
+    renderSide(panelOf(card));
     modal.hidden = false;
     document.body.classList.add("modal-open");
     var dialog = modal.querySelector(".service-modal-dialog");
@@ -85,6 +184,7 @@
   function closeModal() {
     if (!modal || modal.hidden) return;
     modal.hidden = true;
+    selectedBrand = null;
     document.body.classList.remove("modal-open");
   }
 
@@ -98,13 +198,32 @@
     });
   });
 
+  side.addEventListener("click", function (e) {
+    var back = e.target.closest("[data-brand-back]");
+    if (back) {
+      e.preventDefault();
+      renderBrandList();
+      return;
+    }
+    var btn = e.target.closest("[data-brand-id]");
+    if (!btn) return;
+    var item = findBrand(btn.getAttribute("data-brand-id"));
+    if (item) renderBrandBanner(item);
+  });
+
   modal.querySelectorAll("[data-service-close]").forEach(function (el) {
     el.addEventListener("click", closeModal);
   });
 
   document.addEventListener("keydown", function (e) {
     if (!modal || modal.hidden) return;
-    if (e.key === "Escape") { e.preventDefault(); closeModal(); }
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    if (selectedBrand) {
+      renderBrandList();
+      return;
+    }
+    closeModal();
   });
 })();
 </script>

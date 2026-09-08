@@ -232,15 +232,316 @@
     z-index: 2;
   }
   .service-modal-close:hover { background: #e2e8f0; }
-  .service-modal-photo {
+  .service-modal-hero {
     flex: 0 0 400px;
     height: 400px;
+    min-height: 0;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .65rem;
+    margin: 0 0 .7rem;
+  }
+  .service-modal-hero.is-photo-only { grid-template-columns: 1fr; }
+  .service-modal-side {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: .7rem .75rem .75rem;
+  }
+  .service-modal-side[hidden] { display: none !important; }
+  .service-brand-caption {
+    flex: 0 0 auto;
+    margin: 0 0 .5rem .05rem;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .service-brand-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    align-items: flex-start;
+    gap: .4rem;
+    overflow: auto;
+    min-height: 0;
+  }
+  .service-brand-chip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    height: 36px;
+    max-width: 100%;
+    padding: .2rem .5rem;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: #fff;
+    color: var(--text);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, .08);
+    font-family: inherit;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: -.1px;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .service-brand-chip img {
+    display: block;
+    height: 22px;
+    width: auto;
+    max-width: 132px;
+    object-fit: contain;
+  }
+  .service-brand-chip img + span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .service-brand-chip:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15, 23, 42, .14); }
+  .service-brand-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .service-brand-chip.is-hiblack {
+    background: #ffd400;
+    border-color: #111;
+    color: #111;
+    min-width: 118px;
+  }
+  .service-brand-chip.is-nvprint {
+    background: #000;
+    border-color: #0b1f3a;
+    min-width: 108px;
+  }
+  .service-brand-chip.is-7quality {
+    background: #fff;
+    border-color: #e30613;
+    min-width: 92px;
+    height: 42px;
+  }
+  .service-brand-chip.is-7quality img { height: 34px; }
+  .service-brand-chip.is-cactus {
+    background: #111;
+    border-color: #b6e31a;
+    min-width: 108px;
+  }
+  .service-brand-chip.is-easyprint {
+    background: #7a1218;
+    border-color: #f48024;
+    min-width: 118px;
+    height: 40px;
+    padding: .15rem .4rem;
+  }
+  .service-brand-chip.is-easyprint img { height: 32px; }
+  .service-brand-chip.is-gg {
+    background: #000;
+    border-color: #0066b2;
+    min-width: 92px;
+  }
+  .service-brand-chip.is-profiline {
+    background: #fff;
+    border-color: #00205c;
+    min-width: 124px;
+  }
+  .service-brand-chip.is-colouring {
+    background: #fff;
+    border-color: #ec1c24;
+    min-width: 118px;
+  }
+  .service-brand-chip.is-sakura {
+    background: #c5302d;
+    border-color: #9f1d1c;
+    min-width: 42px;
+    height: 42px;
+    padding: .15rem;
+  }
+  .service-brand-chip.is-sakura img { height: 34px; }
+  .service-brand-chip.is-superfine {
+    background: #111;
+    border-color: #9a1b1f;
+    min-width: 128px;
+    height: 40px;
+  }
+  .service-brand-chip.is-superfine img { height: 32px; }
+  .service-brand-chip.is-gala {
+    background: #111;
+    border-color: #8a6a3b;
+    min-width: 108px;
+  }
+  .service-brand-chip.is-colortek {
+    background: #111;
+    border-color: #c4122f;
+    min-width: 124px;
+    height: 40px;
+  }
+  .service-brand-chip.is-colortek img { height: 28px; }
+  .service-brand-chip.is-t2 {
+    background: #111;
+    border-color: #d4a017;
+    min-width: 72px;
+  }
+  .service-brand-chip.is-netproduct {
+    background: #163a73;
+    border-color: #0f2a54;
+    min-width: 42px;
+    height: 42px;
+    padding: .12rem;
+  }
+  .service-brand-chip.is-netproduct img { height: 36px; }
+  .service-brand-banner {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 10px;
+    padding: .65rem .75rem .7rem;
+    box-shadow: 0 1px 8px rgba(15, 23, 42, .08);
+  }
+  .service-brand-banner.is-hiblack {
+    background: #111;
+    color: #ffd400;
+  }
+  .service-brand-banner.is-hiblack .service-brand-banner-text { color: #f4f4f5; }
+  .service-brand-banner.is-hiblack .service-brand-back { background: #ffd400; color: #111; }
+  .service-brand-banner.is-hiblack .service-brand-banner-logo { display: none; }
+  .service-brand-banner.is-nvprint {
+    background: #071427;
+    color: #fff;
+  }
+  .service-brand-banner.is-nvprint .service-brand-banner-text { color: #e2e8f0; }
+  .service-brand-banner.is-nvprint .service-brand-back { background: #1e4d8c; color: #fff; }
+  .service-brand-banner.is-7quality {
+    background: #fff;
+    box-shadow: inset 0 4px 0 #e30613, 0 1px 8px rgba(15, 23, 42, .08);
+  }
+  .service-brand-banner.is-7quality .service-brand-back { background: #e30613; color: #fff; }
+  .service-brand-banner.is-cactus {
+    background: #111;
+    color: #b6e31a;
+  }
+  .service-brand-banner.is-cactus .service-brand-banner-text { color: #e8f5c8; }
+  .service-brand-banner.is-cactus .service-brand-back { background: #b6e31a; color: #111; }
+  .service-brand-banner.is-easyprint {
+    background: #7a1218;
+    color: #fff;
+    box-shadow: inset 0 4px 0 #f48024, 0 1px 8px rgba(15, 23, 42, .08);
+  }
+  .service-brand-banner.is-easyprint .service-brand-banner-text { color: #fde8e8; }
+  .service-brand-banner.is-easyprint .service-brand-back { background: #f48024; color: #fff; }
+  .service-brand-banner.is-gg {
+    background: #041525;
+    color: #fff;
+  }
+  .service-brand-banner.is-gg .service-brand-banner-text { color: #dbeafe; }
+  .service-brand-banner.is-gg .service-brand-back { background: #f7941d; color: #111; }
+  .service-brand-banner.is-profiline {
+    background: #00205c;
+    color: #fff;
+  }
+  .service-brand-banner.is-profiline .service-brand-banner-text { color: #e8eef8; }
+  .service-brand-banner.is-profiline .service-brand-back { background: #786145; color: #fff; }
+  .service-brand-banner.is-colouring {
+    background: #fff;
+    box-shadow: inset 0 4px 0 #ec1c24, 0 1px 8px rgba(15, 23, 42, .08);
+  }
+  .service-brand-banner.is-colouring .service-brand-back { background: #ec1c24; color: #fff; }
+  .service-brand-banner.is-sakura {
+    background: #c5302d;
+    color: #fff;
+  }
+  .service-brand-banner.is-sakura .service-brand-banner-text { color: #fff7f7; }
+  .service-brand-banner.is-sakura .service-brand-back { background: #fff; color: #c5302d; }
+  .service-brand-banner.is-sakura .service-brand-banner-logo { height: 36px; }
+  .service-brand-banner.is-superfine {
+    background: #140809;
+    color: #fff;
+  }
+  .service-brand-banner.is-superfine .service-brand-banner-text { color: #f3d5d6; }
+  .service-brand-banner.is-superfine .service-brand-back { background: #9a1b1f; color: #fff; }
+  .service-brand-banner.is-gala {
+    background: #1a120c;
+    color: #e6d3a8;
+  }
+  .service-brand-banner.is-gala .service-brand-banner-text { color: #efe4d0; }
+  .service-brand-banner.is-gala .service-brand-back { background: #8a6a3b; color: #fff; }
+  .service-brand-banner.is-colortek {
+    background: #0b1020;
+    color: #fff;
+  }
+  .service-brand-banner.is-colortek .service-brand-banner-text { color: #e8eaf4; }
+  .service-brand-banner.is-colortek .service-brand-back { background: #c4122f; color: #fff; }
+  .service-brand-banner.is-t2 {
+    background: #111;
+    color: #fff;
+  }
+  .service-brand-banner.is-t2 .service-brand-banner-text { color: #f5f0e0; }
+  .service-brand-banner.is-t2 .service-brand-back { background: #d4a017; color: #111; }
+  .service-brand-banner.is-netproduct {
+    background: #163a73;
+    color: #fff;
+  }
+  .service-brand-banner.is-netproduct .service-brand-banner-text { color: #e8eef8; }
+  .service-brand-banner.is-netproduct .service-brand-back { background: #fff; color: #163a73; }
+  .service-brand-banner.is-netproduct .service-brand-banner-logo { height: 36px; }
+  .service-brand-banner-head {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    flex: 0 0 auto;
+    margin: 0 0 .45rem;
+  }
+  .service-brand-banner-logo {
+    height: 22px;
+    width: auto;
+    max-width: 120px;
+    object-fit: contain;
+  }
+  .service-brand-banner.is-7quality .service-brand-banner-logo { height: 36px; }
+  .service-brand-back {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    border: none;
+    border-radius: 50%;
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 1.05rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .service-brand-back:hover { filter: brightness(1.08); }
+  .service-brand-banner-head h5 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -.2px;
+    line-height: 1.2;
+  }
+  .service-brand-banner-text {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    font-size: .88rem;
+    line-height: 1.5;
+    color: var(--text);
+    white-space: pre-wrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  .service-modal-photo {
     min-height: 0;
     min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 0 .7rem;
     border-radius: 12px;
     overflow: hidden;
     background: #f8fafc;
@@ -268,7 +569,8 @@
     min-width: 0;
     min-height: 0;
   }
-  .service-modal-photo .service-svg { width: min(560px, 92%); height: auto; }
+  .service-modal-photo .service-svg { width: min(320px, 86%); height: auto; }
+  .service-modal-hero.is-photo-only .service-svg { width: min(560px, 92%); }
   .service-modal-head {
     display: flex;
     align-items: flex-start;
@@ -762,10 +1064,18 @@
       padding: .95rem .9rem .85rem;
       border-radius: 12px;
     }
-    .service-modal-photo {
+    .service-modal-hero {
       flex: 0 0 220px;
       height: 220px;
+      gap: .4rem;
     }
+    .service-modal-side { padding: .5rem .5rem .55rem; }
+    .service-brand-chip { height: 30px; padding: .15rem .4rem; }
+    .service-brand-chip img { height: 16px; max-width: 96px; }
+    .service-brand-chip.is-7quality { height: 34px; }
+    .service-brand-chip.is-7quality img { height: 28px; }
+    .service-brand-banner-head h5 { font-size: 1rem; }
+    .service-brand-banner-text { font-size: .8rem; }
     .service-modal-dialog h3 { font-size: 1.2rem; }
   }
 
