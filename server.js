@@ -10,7 +10,7 @@ const { Pool } = require("pg");
 const app  = express();
 const PORT = 3001;
 
-const FEATURED_MAX = 8;
+const FEATURED_MAX = 9;
 const featuredDir        = path.join(__dirname, "public", "featured");
 const servicesUploadDir  = path.join(__dirname, "public", "service-photos");
 const assetsPrintersDir  = path.join(__dirname, "assets", "printers");
@@ -30,6 +30,7 @@ const FEATURED_SEED = [
   ["Xerox",   "Phaser 3020",           "printer", "laser",  "mono"],
   ["Samsung", "Xpress M2070",          "mfp",     "laser",  "mono"],
   ["Pantum",  "P2207",                 "printer", "laser",  "mono"],
+  ["Катюша",  "M133",                  "mfp",     "laser",  "mono"],
 ];
 
 const FEATURED_DETAILS = {
@@ -80,6 +81,12 @@ const FEATURED_DETAILS = {
     paper_format: "A4", print_speed_ppm: 22, resolution_dpi: "1200×1200",
     is_duplex: false, is_wifi: false, is_ethernet: false, is_usb: true,
     release_year: 2016, has_adf: false, scan_resolution_dpi: null, cartridge_note: "PC-211EV",
+  },
+  "Катюша|M133": {
+    description: "Российское лазерное МФУ: печать, скан и копир, до 33 стр/мин, двусторонняя печать и автоподатчик. Тонер TK-133 и барабан DR-133 раздельные — заправка тонера и замена драма по той же логике, что у Brother.",
+    paper_format: "A4", print_speed_ppm: 33, resolution_dpi: "1200×1200",
+    is_duplex: true, is_wifi: false, is_ethernet: true, is_usb: true,
+    release_year: 2024, has_adf: true, scan_resolution_dpi: "600×600", cartridge_note: "TK-133 / TK-133E + барабан DR-133",
   },
 };
 
@@ -415,18 +422,7 @@ async function initDB() {
   fs.mkdirSync(servicesUploadDir, { recursive: true });
   fs.mkdirSync(assetsPrintersDir, { recursive: true });
   fs.mkdirSync(assetsServicesDir, { recursive: true });
-  const { rows: countRows } = await pool.query("SELECT COUNT(*)::int AS n FROM featured_printers");
-  if (countRows[0].n === 0) {
-    for (let i = 0; i < FEATURED_SEED.length; i++) {
-      const [brand, model, deviceType, tech, color] = FEATURED_SEED[i];
-      await pool.query(
-        `INSERT INTO featured_printers
-           (brand, model, device_type, print_technology, color_mode, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [brand, model, deviceType, tech, color, i + 1]
-      );
-    }
-  }
+  await ensureFeaturedSeed();
   await fillFeaturedDetails();
   await fillServiceDetails();
 }
@@ -524,6 +520,26 @@ async function fillFeaturedDetails() {
         extra.release_year, extra.has_adf, extra.scan_resolution_dpi, extra.cartridge_note,
         row.id,
       ]
+    );
+  }
+}
+
+async function ensureFeaturedSeed() {
+  const { rows } = await pool.query("SELECT brand, model FROM featured_printers");
+  const have = new Set(rows.map(r => r.brand + "|" + r.model));
+  const { rows: maxRows } = await pool.query(
+    "SELECT COALESCE(MAX(sort_order), 0)::int AS m FROM featured_printers"
+  );
+  let order = maxRows[0].m;
+  for (let i = 0; i < FEATURED_SEED.length; i++) {
+    const [brand, model, deviceType, tech, color] = FEATURED_SEED[i];
+    if (have.has(brand + "|" + model)) continue;
+    order += 1;
+    await pool.query(
+      `INSERT INTO featured_printers
+         (brand, model, device_type, print_technology, color_mode, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [brand, model, deviceType, tech, color, order]
     );
   }
 }
