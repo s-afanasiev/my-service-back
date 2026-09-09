@@ -268,7 +268,7 @@
     flex-wrap: wrap;
     align-content: flex-start;
     align-items: flex-start;
-    gap: .4rem;
+    gap: .5rem;
     overflow: auto;
     min-height: 0;
   }
@@ -278,11 +278,11 @@
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    height: 36px;
+    height: 60px;
     max-width: 100%;
-    padding: .2rem .5rem;
+    padding: .35rem .75rem;
     border: 1px solid transparent;
-    border-radius: 7px;
+    border-radius: 10px;
     background: #fff;
     color: var(--text);
     box-shadow: 0 1px 4px rgba(15, 23, 42, .08);
@@ -296,10 +296,15 @@
   }
   .service-brand-chip img {
     display: block;
-    height: 22px;
+    height: 44px;
     width: auto;
-    max-width: 132px;
+    max-width: 240px;
     object-fit: contain;
+    background: #fff;
+  }
+  .service-brand-chip.is-hiblack img,
+  .service-brand-chip.is-sakura img {
+    background: transparent;
   }
   .service-brand-chip img + span {
     position: absolute;
@@ -314,88 +319,66 @@
     background: #ffd400;
     border-color: #111;
     color: #111;
-    min-width: 118px;
   }
   .service-brand-chip.is-nvprint {
-    background: #000;
+    background: #fff;
     border-color: #0b1f3a;
-    min-width: 108px;
   }
   .service-brand-chip.is-7quality {
     background: #fff;
     border-color: #e30613;
-    min-width: 92px;
-    height: 42px;
   }
-  .service-brand-chip.is-7quality img { height: 34px; }
+  .service-brand-chip.is-7quality img { height: 52px; }
   .service-brand-chip.is-cactus {
-    background: #111;
+    background: #fff;
     border-color: #b6e31a;
-    min-width: 108px;
   }
   .service-brand-chip.is-easyprint {
-    background: #7a1218;
+    background: #fff;
     border-color: #f48024;
-    min-width: 118px;
-    height: 40px;
-    padding: .15rem .4rem;
   }
-  .service-brand-chip.is-easyprint img { height: 32px; }
+  .service-brand-chip.is-easyprint img { height: 48px; }
   .service-brand-chip.is-gg {
-    background: #000;
+    background: #fff;
     border-color: #0066b2;
-    min-width: 92px;
   }
   .service-brand-chip.is-profiline {
     background: #fff;
     border-color: #00205c;
-    min-width: 124px;
   }
   .service-brand-chip.is-colouring {
     background: #fff;
     border-color: #ec1c24;
-    min-width: 118px;
   }
   .service-brand-chip.is-sakura {
     background: #c5302d;
     border-color: #9f1d1c;
-    min-width: 42px;
-    height: 42px;
-    padding: .15rem;
+    padding: .2rem;
   }
-  .service-brand-chip.is-sakura img { height: 34px; }
+  .service-brand-chip.is-sakura img { height: 52px; }
   .service-brand-chip.is-superfine {
-    background: #111;
+    background: #fff;
     border-color: #9a1b1f;
-    min-width: 128px;
-    height: 40px;
   }
-  .service-brand-chip.is-superfine img { height: 32px; }
+  .service-brand-chip.is-superfine img { height: 48px; }
   .service-brand-chip.is-gala {
-    background: #111;
+    background: #fff;
     border-color: #8a6a3b;
-    min-width: 108px;
   }
   .service-brand-chip.is-colortek {
-    background: #111;
+    background: #fff;
     border-color: #c4122f;
-    min-width: 124px;
-    height: 40px;
   }
-  .service-brand-chip.is-colortek img { height: 28px; }
   .service-brand-chip.is-t2 {
-    background: #111;
+    background: #fff;
     border-color: #d4a017;
-    min-width: 72px;
   }
   .service-brand-chip.is-netproduct {
-    background: #163a73;
-    border-color: #0f2a54;
-    min-width: 42px;
-    height: 42px;
-    padding: .12rem;
+    background: #fff;
+    border-color: #163a73;
+    padding: .2rem;
   }
-  .service-brand-chip.is-netproduct img { height: 36px; }
+  .service-brand-chip.is-netproduct img { height: 52px; }
   .service-brand-banner {
     flex: 1 1 auto;
     min-height: 0;
@@ -504,6 +487,20 @@
     width: auto;
     max-width: 120px;
     object-fit: contain;
+  }
+  .service-brand-banner.is-nvprint .service-brand-banner-logo,
+  .service-brand-banner.is-cactus .service-brand-banner-logo,
+  .service-brand-banner.is-easyprint .service-brand-banner-logo,
+  .service-brand-banner.is-gg .service-brand-banner-logo,
+  .service-brand-banner.is-superfine .service-brand-banner-logo,
+  .service-brand-banner.is-gala .service-brand-banner-logo,
+  .service-brand-banner.is-colortek .service-brand-banner-logo,
+  .service-brand-banner.is-t2 .service-brand-banner-logo {
+    background: #fff;
+    border-radius: 4px;
+    padding: 4px 8px;
+    height: 28px;
+    box-sizing: content-box;
   }
   .service-brand-banner.is-7quality .service-brand-banner-logo { height: 36px; }
   .service-brand-back {
@@ -1070,10 +1067,13 @@
       gap: .4rem;
     }
     .service-modal-side { padding: .5rem .5rem .55rem; }
-    .service-brand-chip { height: 30px; padding: .15rem .4rem; }
-    .service-brand-chip img { height: 16px; max-width: 96px; }
-    .service-brand-chip.is-7quality { height: 34px; }
-    .service-brand-chip.is-7quality img { height: 28px; }
+    .service-brand-chip { height: 52px; padding: .25rem .55rem; }
+    .service-brand-chip img { height: 36px; max-width: 168px; }
+    .service-brand-chip.is-7quality img,
+    .service-brand-chip.is-sakura img,
+    .service-brand-chip.is-netproduct img { height: 44px; }
+    .service-brand-chip.is-easyprint img,
+    .service-brand-chip.is-superfine img { height: 40px; }
     .service-brand-banner-head h5 { font-size: 1rem; }
     .service-brand-banner-text { font-size: .8rem; }
     .service-modal-dialog h3 { font-size: 1.2rem; }
