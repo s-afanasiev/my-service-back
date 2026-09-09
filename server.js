@@ -10,6 +10,20 @@ const { Pool } = require("pg");
 const app  = express();
 const PORT = 3001;
 
+const SITE_NAME    = process.env.SITE_NAME || "Заправка-Курск";
+const SITE_URL     = String(process.env.SITE_URL || "https://zapravka-k.ru").replace(/\/$/, "");
+const SITE_CITY    = process.env.SITE_CITY || "Курск";
+const SITE_CITY_IN = process.env.SITE_CITY_IN || (SITE_CITY === "Курск" ? "Курске" : SITE_CITY);
+const SITE_ADDRESS  = String(process.env.SITE_ADDRESS || "").trim();
+const CANONICAL_HOST = SITE_URL.replace(/^https?:\/\//i, "").toLowerCase();
+const ALIAS_HOSTS = new Set([
+  "www." + CANONICAL_HOST,
+  "www.zapravka-k.ru",
+  "xn----7sbaaj1ayca7blgn0a.xn--p1ai",
+  "заправка-курск.рф",
+]);
+ALIAS_HOSTS.delete(CANONICAL_HOST);
+
 const FEATURED_MAX = 9;
 const featuredDir        = path.join(__dirname, "public", "featured");
 const servicesUploadDir  = path.join(__dirname, "public", "service-photos");
@@ -777,49 +791,293 @@ const serviceUpload = multer({
 });
 
 // ── Express настройки ─────────────────────────────────────────────────────────
-app.use("/assets", express.static(path.join(__dirname, "assets")));
-app.use(express.static(path.join(__dirname, "public")));
-app.use(express.urlencoded({ extended: false }));
+app.set("trust proxy", 1);
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
+app.use(express.urlencoded({ extended: false }));
+
+app.use((req, res, next) => {
+  const host = String(req.hostname || "").toLowerCase();
+  if (!host || host === "localhost" || host === "127.0.0.1" || /^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+    return next();
+  }
+  if (!ALIAS_HOSTS.has(host)) return next();
+  return res.redirect(301, SITE_URL + req.originalUrl);
+});
+
+app.use((req, res, next) => {
+  if (req.path === "/home" || req.path.startsWith("/admin") || req.path.startsWith("/api")) {
+    res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  }
+  next();
+});
+
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain; charset=utf-8").send(
+    "User-agent: *\n" +
+    "Allow: /\n" +
+    "Disallow: /home\n" +
+    "Disallow: /admin\n" +
+    "Disallow: /api\n" +
+    "Disallow: /dbadmin\n" +
+    "\n" +
+    "Host: " + CANONICAL_HOST + "\n" +
+    "Sitemap: " + SITE_URL + "/sitemap.xml\n"
+  );
+});
+
+app.get("/favicon.ico", (req, res) => {
+  res.redirect(301, "/assets/favicon.svg");
+});
+
+app.use("/assets", express.static(path.join(__dirname, "assets")));
 
 // ── Публичные маршруты ────────────────────────────────────────────────────────
 const money = new Intl.NumberFormat("ru-RU", {
   style: "currency", currency: "RUB", maximumFractionDigits: 0,
 });
 
-const SITE_NAME = process.env.SITE_NAME || "";
-const SITE_URL  = process.env.SITE_URL  || "";
+const HOME_TITLE = "Ремонт оргтехники и заправка картриджей в Курске";
+const HOME_DESC  = "Ремонт принтеров, МФУ и копиров, заправка и продажа картриджей в Курске. Выезд мастера в день обращения, гарантия на все виды работ. Звоните!";
+
+function absUrl(pathname) {
+  const pathName = pathname.startsWith("/") ? pathname : "/" + pathname;
+  return SITE_URL + pathName;
+}
+
+function ldString(obj) {
+  return JSON.stringify(obj).replace(/</g, "\\u003c");
+}
+
+function mapContacts(rows) {
+  return rows.map(c => ({ ...c, textColor: textColorFor(c.color) }));
+}
+
+function pickSeoFromContacts(contacts) {
+  let telephone = "";
+  let email = "";
+  for (const c of contacts) {
+    const url = String(c.url || "");
+    if (!telephone && url.startsWith("tel:")) telephone = url.slice(4);
+    if (!email && url.startsWith("mailto:")) email = url.slice(7);
+  }
+  return { telephone, email };
+}
+
+function localBusinessLd(contacts) {
+  const seo = pickSeoFromContacts(contacts);
+  const node = {
+    "@type": "LocalBusiness",
+    "@id": absUrl("/") + "#business",
+    name: SITE_NAME || "Заправка-Курск",
+    description: HOME_DESC,
+    url: absUrl("/"),
+    inLanguage: "ru",
+    areaServed: { "@type": "City", name: SITE_CITY },
+  };
+  if (seo.telephone) node.telephone = seo.telephone;
+  if (seo.email) node.email = seo.email;
+  if (SITE_ADDRESS) {
+    node.address = {
+      "@type": "PostalAddress",
+      streetAddress: SITE_ADDRESS,
+      addressLocality: SITE_CITY,
+      addressRegion: "Курская область",
+      addressCountry: "RU",
+    };
+  }
+  if (fs.existsSync(heroPath)) node.image = absUrl("/hero-bg.jpg");
+  return node;
+}
+
+function prettyName(s) {
+  const t = String(s || "").trim();
+  if (!t) return t;
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function xmlEscape(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+async function loadPublicLists() {
+  const { rows: serviceRows } = await pool.query("SELECT * FROM services ORDER BY id");
+  const { rows: contactRows } = await pool.query("SELECT * FROM contacts ORDER BY id");
+  const { rows: featuredRows } = await pool.query(
+    `SELECT * FROM featured_printers
+      WHERE is_active = true
+      ORDER BY sort_order, id
+      LIMIT $1`,
+    [FEATURED_MAX]
+  );
+  const contacts = mapContacts(contactRows);
+  const seo = pickSeoFromContacts(contacts);
+  const hasHero = fs.existsSync(heroPath);
+  return {
+    services: serviceRows.map(mapService),
+    contacts,
+    featured: featuredRows.map(mapFeatured),
+    seo,
+    hasHero,
+  };
+}
+
+function publicLocals(data, extra) {
+  return {
+    siteName:   SITE_NAME,
+    siteUrl:    SITE_URL,
+    city:       SITE_CITY,
+    cityIn:     SITE_CITY_IN,
+    telephone:  data.seo.telephone,
+    email:      data.seo.email,
+    contacts:   data.contacts,
+    ogImage:    data.hasHero ? absUrl("/hero-bg.jpg") : "",
+    ...extra,
+  };
+}
 
 app.get("/", async (req, res) => {
   try {
-    const { rows: services } = await pool.query("SELECT * FROM services ORDER BY id");
-    const { rows: contacts } = await pool.query("SELECT * FROM contacts ORDER BY id");
-    const { rows: featured } = await pool.query(
-      `SELECT * FROM featured_printers
-        WHERE is_active = true
-        ORDER BY sort_order, id
-        LIMIT $1`,
-      [FEATURED_MAX]
-    );
-    const hasHero = fs.existsSync(heroPath);
-    res.render("main", {
-      siteName:    SITE_NAME,
-      siteUrl:     SITE_URL,
-      title:       "Ремонт оргтехники и заправка картриджей в Курске",
-      description: "Ремонт принтеров, МФУ и копиров, заправка и продажа картриджей в Курске. Выезд мастера в день обращения, гарантия на все виды работ. Звоните!",
-      heading:     "Ремонт оргтехники и заправка картриджей",
+    const data = await loadPublicLists();
+    const pageUrl = absUrl("/");
+    const business = localBusinessLd(data.contacts);
+    res.render("main", publicLocals(data, {
+      title:       HOME_TITLE,
+      description: HOME_DESC,
+      heading:     HOME_TITLE,
       subheading:  "Принтеры, МФУ, копиры — ремонт с гарантией. Заправка и продажа картриджей. Выезд мастера в день обращения.",
-      ogImage:     hasHero ? `${SITE_URL}/hero-bg.jpg` : "",
-      services:    services.map(mapService),
-      contacts:    contacts.map(c => ({ ...c, textColor: textColorFor(c.color) })),
-      featured:    featured.map(mapFeatured),
-    });
+      pageUrl,
+      jsonLd: ldString({
+        "@context": "https://schema.org",
+        "@graph": [
+          business,
+          { "@type": "WebSite", name: SITE_NAME || "Заправка-Курск", url: pageUrl, inLanguage: "ru" },
+        ],
+      }),
+      services: data.services,
+      featured: data.featured,
+    }));
   } catch (err) {
     console.error(err);
     res.status(500).send("Ошибка базы данных");
   }
 });
+
+app.get("/sitemap.xml", async (req, res) => {
+  try {
+    const data = await loadPublicLists();
+    const urls = [absUrl("/")];
+    data.services.forEach(s => { if (s.slug) urls.push(absUrl("/uslugi/" + s.slug)); });
+    data.featured.forEach(p => { if (p.slug) urls.push(absUrl("/modeli/" + p.slug)); });
+    const body = '<?xml version="1.0" encoding="UTF-8"?>\n'
+      + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+      + urls.map(u => "  <url><loc>" + xmlEscape(u) + "</loc></url>\n").join("")
+      + "</urlset>\n";
+    res.type("application/xml; charset=utf-8").send(body);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Ошибка базы данных");
+  }
+});
+
+app.get("/uslugi/:slug", async (req, res) => {
+  try {
+    const data = await loadPublicLists();
+    const service = data.services.find(s => s.slug === req.params.slug);
+    if (!service) return res.status(404).send("Услуга не найдена");
+    const pageUrl = absUrl("/uslugi/" + service.slug);
+    const title = prettyName(service.name) + " в " + SITE_CITY_IN;
+    const description = (service.description || HOME_DESC).replace(/\s+/g, " ").trim().slice(0, 160);
+    const business = localBusinessLd(data.contacts);
+    const offer = {
+      "@type": "Offer",
+      priceCurrency: "RUB",
+      price: String(service.price),
+      availability: "https://schema.org/InStock",
+    };
+    res.render("service", publicLocals(data, {
+      title,
+      description,
+      heading: title,
+      pageUrl,
+      service,
+      jsonLd: ldString({
+        "@context": "https://schema.org",
+        "@graph": [
+          business,
+          {
+            "@type": "Service",
+            name: service.name,
+            description: service.description || description,
+            url: pageUrl,
+            provider: { "@id": business["@id"] },
+            areaServed: { "@type": "City", name: SITE_CITY },
+            offers: offer,
+          },
+          {
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Главная", item: absUrl("/") },
+              { "@type": "ListItem", position: 2, name: service.name, item: pageUrl },
+            ],
+          },
+        ],
+      }),
+    }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Ошибка базы данных");
+  }
+});
+
+app.get("/modeli/:slug", async (req, res) => {
+  try {
+    const data = await loadPublicLists();
+    const printer = data.featured.find(p => p.slug === req.params.slug);
+    if (!printer) return res.status(404).send("Модель не найдена");
+    const pageUrl = absUrl("/modeli/" + printer.slug);
+    const title = "Заправка и ремонт " + printer.brand + " " + printer.model + " в " + SITE_CITY_IN;
+    const description = (printer.description || ("Заправка картриджа и ремонт " + printer.brand + " " + printer.model + " в " + SITE_CITY + ".")).replace(/\s+/g, " ").trim().slice(0, 160);
+    const business = localBusinessLd(data.contacts);
+    res.render("printer", publicLocals(data, {
+      title,
+      description,
+      heading: title,
+      pageUrl,
+      printer,
+      jsonLd: ldString({
+        "@context": "https://schema.org",
+        "@graph": [
+          business,
+          {
+            "@type": "Product",
+            name: printer.brand + " " + printer.model,
+            description: printer.description || description,
+            url: pageUrl,
+            brand: printer.brand,
+            category: printer.meta,
+          },
+          {
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Главная", item: absUrl("/") },
+              { "@type": "ListItem", position: 2, name: printer.brand + " " + printer.model, item: pageUrl },
+            ],
+          },
+        ],
+      }),
+    }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Ошибка базы данных");
+  }
+});
+
+app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/api/services", async (req, res) => {
   try {

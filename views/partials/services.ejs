@@ -4,11 +4,12 @@
   <% } else { %>
     <ul class="services">
       <% services.forEach(function(s, i) { %>
-        <li class="service-card"
-            tabindex="0"
-            role="button"
+        <li>
+        <a class="service-card"
+            href="/uslugi/<%= s.slug %>"
             data-service-card
             data-index="<%= i %>"
+            data-page="/uslugi/<%= s.slug %>"
             aria-haspopup="dialog">
           <span class="service-name"><%= s.name %></span>
           <span class="service-price"><%= s.priceFormatted %></span>
@@ -21,6 +22,7 @@
           </div>
           <p class="service-desc" hidden><%= s.description %></p>
           <script type="application/json" class="service-panel"><%- JSON.stringify(s.panel || null).replace(/</g, '\\u003c') %></script>
+        </a>
         </li>
       <% }); %>
     </ul>
@@ -43,6 +45,7 @@
     <div class="service-modal-desc-block">
       <h4>Описание</h4>
       <p class="service-modal-desc" data-service-desc></p>
+      <a class="modal-page-link" data-service-page href="/">Страница услуги</a>
     </div>
   </div>
 </div>
@@ -171,6 +174,8 @@
     modal.querySelector("[data-service-title]").textContent = textOf(card, ".service-name");
     modal.querySelector("[data-service-price]").textContent = textOf(card, ".service-price");
     modal.querySelector("[data-service-desc]").textContent = textOf(card, ".service-desc");
+    var pageLink = modal.querySelector("[data-service-page]");
+    if (pageLink) pageLink.setAttribute("href", card.getAttribute("data-page") || "/");
     renderSide(panelOf(card));
     modal.hidden = false;
     document.body.classList.add("modal-open");
@@ -189,12 +194,10 @@
   }
 
   cards.forEach(function (card) {
-    card.addEventListener("click", function () { openModal(card); });
-    card.addEventListener("keydown", function (e) {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        openModal(card);
-      }
+    card.addEventListener("click", function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      openModal(card);
     });
   });
 

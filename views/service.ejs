@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body>
+  <%- include('partials/page-top') %>
+
+  <nav class="crumbs" aria-label="Навигация">
+    <a href="/">Главная</a> / <%= service.name %>
+  </nav>
+
+  <article class="detail">
+    <div class="detail-card">
+      <div class="detail-photo">
+        <% if (service.imageUrl) { %>
+          <img src="<%= service.imageUrl %>" alt="<%= service.name %>" width="600" height="400" />
+        <% } else { %>
+          <%- include('partials/service-art', { kind: service.kind }) %>
+        <% } %>
+      </div>
+      <span class="detail-price"><%= service.priceFormatted %></span>
+      <h1><%= heading %></h1>
+      <% if (service.description) { %>
+        <p class="detail-desc"><%= service.description %></p>
+      <% } %>
+
+      <% if (service.panel && service.panel.items && service.panel.items.length) { %>
+        <section class="brand-block">
+          <h2><%= service.panel.title || "Бренды" %></h2>
+          <% service.panel.items.forEach(function(item) { %>
+            <article class="brand-article">
+              <h3><%= item.label %></h3>
+              <% if (item.description) { %>
+                <p class="detail-desc"><%= item.description %></p>
+              <% } %>
+            </article>
+          <% }); %>
+        </section>
+      <% } %>
+    </div>
+  </article>
+
+  <%- include('partials/footer') %>
+</body>
+</html>

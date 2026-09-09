@@ -1,0 +1,15 @@
+<header class="page-top">
+  <a class="page-top-brand" href="/"><%= siteName || "Заправка-Курск" %></a>
+  <% if (contacts && contacts.length > 0) { %>
+    <nav class="contacts" aria-label="Контакты">
+      <% contacts.forEach(function(c) { %>
+        <a class="btn"
+           href="<%= c.url %>"
+           style="background: <%= c.color %>; color: <%= c.textColor %>;"
+           <% if (!c.url.startsWith("tel:") && !c.url.startsWith("mailto:")) { %>target="_blank" rel="noopener"<% } %>>
+          <%= c.type %>
+        </a>
+      <% }); %>
+    </nav>
+  <% } %>
+</header>

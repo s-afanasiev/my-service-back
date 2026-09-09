@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body>
+  <%- include('partials/page-top') %>
+
+  <nav class="crumbs" aria-label="Навигация">
+    <a href="/">Главная</a> / <%= printer.brand %> <%= printer.model %>
+  </nav>
+
+  <article class="detail">
+    <div class="detail-card">
+      <div class="detail-photo">
+        <% if (printer.imageUrl) { %>
+          <img src="<%= printer.imageUrl %>" alt="<%= printer.brand %> <%= printer.model %>" width="600" height="600" />
+        <% } else { %>
+          <svg class="printer-svg" viewBox="0 0 200 128" fill="none" aria-hidden="true">
+            <rect class="printer-lid" x="38" y="10" width="124" height="18" rx="4" />
+            <rect class="printer-body" x="28" y="32" width="144" height="72" rx="10" />
+            <rect class="printer-window" x="46" y="44" width="108" height="36" rx="4" />
+            <rect class="printer-paper" x="58" y="50" width="84" height="24" rx="2" />
+            <rect class="printer-tray" x="40" y="96" width="120" height="10" rx="3" />
+          </svg>
+        <% } %>
+      </div>
+      <p class="detail-meta"><%= printer.brand %> · <%= printer.meta %></p>
+      <h1><%= heading %></h1>
+      <% if (printer.description) { %>
+        <p class="detail-desc"><%= printer.description %></p>
+      <% } %>
+      <% if (printer.specRows && printer.specRows.length) { %>
+        <table class="detail-specs">
+          <tbody>
+            <% printer.specRows.forEach(function(row) { %>
+              <tr>
+                <th><%= row.label %></th>
+                <td><%= row.value %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </article>
+
+  <%- include('partials/footer') %>
+</body>
+</html>

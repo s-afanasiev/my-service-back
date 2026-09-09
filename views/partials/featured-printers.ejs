@@ -16,10 +16,12 @@
           <li class="film-card<%= p.device_type === 'mfp' ? ' is-mfp' : '' %><%= p.color_mode === 'color' ? ' is-color' : '' %><%= p.print_technology === 'inkjet' ? ' is-inkjet' : '' %>"
               data-brand="<%= p.brandSlug %>"
               data-index="<%= i %>"
+              data-page="/modeli/<%= p.slug %>"
               style="--accent: var(--brand-<%= p.brandSlug %>, var(--primary))">
+            <a class="film-card-link" href="/modeli/<%= p.slug %>">
             <div class="film-art" aria-hidden="true">
               <% if (p.imageUrl) { %>
-                <img src="<%= p.imageUrl %>" alt="" width="240" height="150" loading="lazy" decoding="async" />
+                <img src="<%= p.imageUrl %>" alt="<%= p.brand %> <%= p.model %>" width="240" height="150" loading="lazy" decoding="async" />
               <% } else { %>
                 <svg class="printer-svg" viewBox="0 0 200 128" fill="none">
                   <rect class="printer-lid" x="38" y="10" width="124" height="18" rx="4" />
@@ -41,6 +43,7 @@
               <span><%= String(i + 1).padStart(2, '0') %></span>
               <span><%= p.typeLabel %></span>
             </div>
+            </a>
             <span class="film-type" hidden><%= p.typeLabel %></span>
             <span class="film-tech" hidden><%= p.techLabel %></span>
             <span class="film-color" hidden><%= p.colorLabel %></span>
@@ -77,6 +80,7 @@
     <div class="printer-modal-desc-block">
       <h4>Описание</h4>
       <p class="printer-modal-desc" data-modal-desc></p>
+      <a class="modal-page-link" data-modal-page href="/">Страница модели</a>
     </div>
     <div class="printer-modal-specs-block">
       <h4>Характеристики</h4>
@@ -186,6 +190,8 @@
     modal.querySelector("[data-modal-brand]").textContent = textOf(card, ".film-brand");
     modal.querySelector("[data-modal-title]").textContent = textOf(card, ".film-model");
     modal.querySelector("[data-modal-desc]").textContent = textOf(card, ".film-desc");
+    var pageLink = modal.querySelector("[data-modal-page]");
+    if (pageLink) pageLink.setAttribute("href", card.getAttribute("data-page") || "/");
     var tbody = modal.querySelector("[data-modal-specs]");
     tbody.innerHTML = "";
     var specs = [];
@@ -343,6 +349,15 @@
   }, true);
 
   layout();
+
+  cards.forEach(function (card) {
+    var link = card.querySelector(".film-card-link");
+    if (!link) return;
+    link.addEventListener("click", function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button) return;
+      e.preventDefault();
+    });
+  });
 })();
 </script>
 <% } %>
