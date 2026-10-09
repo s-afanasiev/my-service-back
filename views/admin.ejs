@@ -63,6 +63,14 @@
     .file-name { font-family: ui-monospace, Consolas, monospace; font-size: .75rem; color: #64748b; }
     .photo-upload input[type="file"] { font-size: .75rem; max-width: 11rem; }
     .thumb-empty { width: 44px; height: 32px; border-radius: 4px; background: #eef2f7; display: grid; place-items: center; color: #94a3b8; font-size: .7rem; }
+
+    .badge { display: inline-block; padding: .15rem .55rem; border-radius: 99px; background: #f1f5f9; color: #64748b; font-size: .75rem; font-weight: 600; }
+    .badge-feat { background: #dbeafe; color: #1d4ed8; }
+    .btn-toggle { background: #fef9c3; color: #a16207; }
+    .btn-toggle:hover { background: #fef08a; }
+    .import-ok { background: #dcfce7; color: #166534; padding: .6rem .9rem; border-radius: 8px; font-size: .9rem; margin-bottom: 1rem; }
+    .import-err { background: #fee2e2; color: #b91c1c; padding: .6rem .9rem; border-radius: 8px; font-size: .9rem; margin-bottom: 1rem; }
+    .check-inline { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem; font-weight: 500; padding-bottom: .55rem; }
   </style>
 </head>
 <body>
@@ -88,6 +96,85 @@
   <form method="POST" action="/admin/hero-upload" enctype="multipart/form-data" class="add-form">
     <label><%= hasHero ? 'Заменить фото' : 'Загрузить фото' %><input name="hero" type="file" accept="image/*" required style="padding:.3rem 0;border:none" /></label>
     <button class="btn-add" type="submit">Загрузить</button>
+  </form>
+</div>
+
+<!-- ── Каталог моделей ── -->
+<div class="card">
+  <h2>Каталог моделей <span class="muted">страница /modeli</span></h2>
+  <p class="hint">
+    Каждая модель получает свою страницу на сайте и попадает в sitemap.
+    Массовое наполнение — CSV-файлом: разделитель <code>;</code> или <code>,</code>, кодировка UTF-8,
+    в заголовке колонки brand, model, device_type, print_technology, color_mode, description, paper_format,
+    print_speed_ppm, resolution_dpi, is_duplex, is_wifi, is_ethernet, is_usb, release_year, has_adf,
+    scan_resolution_dpi, cartridge_note, is_featured (значения «да/нет»).
+    Повторный импорт по паре «бренд + модель» обновляет строки, а не дублирует их; пустая ячейка = поле не менять.
+    Тот же файл заливается на сервер без браузера: <code>node scripts/import-printers.js файл.csv</code>.
+  </p>
+
+  <% if (importResult) { %>
+    <p class="<%= importResult.ok ? 'import-ok' : 'import-err' %>"><%= importResult.text %></p>
+  <% } %>
+  <% if (carouselFull) { %>
+    <p class="import-err">В витрине уже <%= featuredMax %> моделей — сначала уберите одну.</p>
+  <% } %>
+
+  <form method="POST" action="/admin/printers/import" enctype="multipart/form-data" class="add-form" style="margin-bottom:1.25rem">
+    <label>CSV-файл<input name="csv" type="file" accept=".csv,text/csv" required style="padding:.3rem 0;border:none" /></label>
+    <button class="btn-add" type="submit">Импортировать</button>
+  </form>
+
+  <% if (catalog.length === 0) { %>
+    <p class="empty">Каталог пуст. Импортируйте CSV или добавьте модель ниже.</p>
+  <% } else { %>
+    <table>
+      <thead><tr><th>Бренд</th><th>Модель</th><th>Тип</th><th>Картридж</th><th>Где показывается</th><th></th></tr></thead>
+      <tbody>
+        <% catalog.forEach(function(p) { %>
+          <tr>
+            <td><%= p.brand %><% if (!p.is_active) { %> <span class="muted">скрыта</span><% } %></td>
+            <td><%= p.model %></td>
+            <td><%= p.meta %></td>
+            <td class="file-name"><%= p.cartridge_note || "—" %></td>
+            <td><% if (p.is_featured) { %><span class="badge badge-feat">витрина</span><% } else { %><span class="badge">каталог</span><% } %></td>
+            <td style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+              <form class="inline" method="POST" action="/admin/printers/<%= p.id %>/toggle-featured">
+                <button class="btn-toggle" type="submit"><%= p.is_featured ? "Из витрины" : "В витрину" %></button>
+              </form>
+              <a class="btn-edit" href="/admin/featured/<%= p.id %>/edit">Изменить</a>
+              <form class="inline" method="POST" action="/admin/printers/<%= p.id %>/delete">
+                <button class="btn-delete" onclick="return confirm('Удалить «<%= p.brand %> <%= p.model %>» из каталога? Страница модели перестанет открываться.')">Удалить</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+
+  <form method="POST" action="/admin/printers/add" class="add-form">
+    <label>Бренд<input name="brand" placeholder="HP" required /></label>
+    <label>Модель<input name="model" placeholder="LaserJet P1102" required /></label>
+    <label>Тип
+      <select name="device_type">
+        <option value="printer">Принтер</option>
+        <option value="mfp">МФУ</option>
+      </select>
+    </label>
+    <label>Печать
+      <select name="print_technology">
+        <option value="laser">лазер</option>
+        <option value="inkjet">струйный</option>
+      </select>
+    </label>
+    <label>Цвет
+      <select name="color_mode">
+        <option value="mono">ч/б</option>
+        <option value="color">цветной</option>
+      </select>
+    </label>
+    <label class="check-inline"><input type="checkbox" name="is_featured" /> в витрину</label>
+    <button class="btn-add" type="submit">+ Добавить</button>
   </form>
 </div>
 

@@ -46,7 +46,7 @@
 </head>
 <body>
 
-<h1>Модель на витрине</h1>
+<h1>Редактирование модели</h1>
 
 <div class="card">
   <form method="POST" action="/admin/featured/<%= printer.id %>/edit" enctype="multipart/form-data">
@@ -147,7 +147,12 @@
 
     <label class="field check">
       <input type="checkbox" name="is_active" <%= printer.is_active ? 'checked' : '' %> />
-      Показывать на главной
+      Показывать на сайте (страница модели и каталог)
+    </label>
+
+    <label class="field check">
+      <input type="checkbox" name="is_featured" <%= printer.is_featured ? 'checked' : '' %> />
+      В витрине «Популярные модели» на главной
     </label>
 
     <div class="actions">

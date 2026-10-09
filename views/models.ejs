@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body>
+  <%- include('partials/page-top') %>
+
+  <nav class="crumbs" aria-label="Навигация">
+    <a href="/">Главная</a> / Каталог моделей
+  </nav>
+
+  <article class="detail">
+    <div class="detail-card">
+      <h1><%= heading %></h1>
+      <p class="detail-desc">Проверенные модели, которые чаще всего приносят в ремонт. Для каждой — характеристики, картридж и цены на заправку. Не нашли свою модель? Позвоните — заправим почти любую.</p>
+
+      <% if (!groups.length) { %>
+        <div class="empty-state">Модели пока не добавлены.</div>
+      <% } else { %>
+        <% groups.forEach(function(g) { %>
+          <section class="cat-brand" aria-label="<%= g.brand %>">
+            <h2 class="cat-brand-title">
+              <span class="cat-brand-dot" style="--accent: var(--brand-<%= g.brandSlug %>, var(--primary))"></span><%= g.brand %>
+            </h2>
+            <ul class="cat-grid">
+              <% g.items.forEach(function(p) { %>
+                <li>
+                  <a class="cat-card" href="/modeli/<%= p.slug %>">
+                    <span class="cat-art" style="--accent: var(--brand-<%= g.brandSlug %>, var(--primary))">
+                      <% if (p.imageUrl) { %>
+                        <img src="<%= p.imageUrl %>" alt="<%= p.brand %> <%= p.model %>" width="240" height="150" loading="lazy" decoding="async" />
+                      <% } else { %>
+                        <svg class="printer-svg" viewBox="0 0 200 128" fill="none" aria-hidden="true">
+                          <rect class="printer-lid" x="38" y="10" width="124" height="18" rx="4" />
+                          <rect class="printer-body" x="28" y="32" width="144" height="72" rx="10" />
+                          <rect class="printer-window" x="46" y="44" width="108" height="36" rx="4" />
+                          <rect class="printer-paper" x="58" y="50" width="84" height="24" rx="2" />
+                          <rect class="printer-tray" x="40" y="96" width="120" height="10" rx="3" />
+                          <circle class="printer-dot" cx="48" cy="88" r="3.5" />
+                          <g class="printer-cmyk">
+                            <circle cx="148" cy="88" r="3.5" /><circle cx="158" cy="88" r="3.5" /><circle cx="168" cy="88" r="3.5" />
+                          </g>
+                        </svg>
+                      <% } %>
+                    </span>
+                    <span class="cat-model"><%= p.model %></span>
+                    <span class="cat-meta"><%= p.meta %></span>
+                  </a>
+                </li>
+              <% }); %>
+            </ul>
+          </section>
+        <% }); %>
+      <% } %>
+    </div>
+  </article>
+
+  <%- include('partials/footer') %>
+</body>
+</html>

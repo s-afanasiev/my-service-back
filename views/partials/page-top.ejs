@@ -1,5 +1,8 @@
 <header class="page-top">
   <a class="page-top-brand" href="/"><%= siteName || "Заправка-Курск" %></a>
+  <nav class="page-top-nav" aria-label="Разделы">
+    <a href="/modeli">Модели</a>
+  </nav>
   <% if (contacts && contacts.length > 0) { %>
     <nav class="contacts" aria-label="Контакты">
       <% contacts.forEach(function(c) { %>

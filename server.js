@@ -6,6 +6,7 @@ const path    = require("path");
 const express = require("express");
 const multer  = require("multer");
 const { Pool } = require("pg");
+const { parsePrintersCsv, upsertPrinters } = require("./lib/printers-import");
 
 const app  = express();
 const PORT = 3001;
@@ -395,7 +396,15 @@ async function initDB() {
     url   VARCHAR(2048) NOT NULL,
     color VARCHAR(7)    NOT NULL DEFAULT '#2563eb'
   )`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS featured_printers (
+  // Миграция: featured_printers (карусель на главной) → printers (общий каталог);
+  // is_featured=true помечает модели, которые показываются в карусели.
+  const legacyFeatured = await pool.query(
+    `SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'featured_printers'`);
+  if (legacyFeatured.rows.length) {
+    await pool.query(`ALTER TABLE featured_printers RENAME TO printers`);
+  }
+  await pool.query(`CREATE TABLE IF NOT EXISTS printers (
     id                SERIAL PRIMARY KEY,
     brand             VARCHAR(100) NOT NULL,
     model             VARCHAR(150) NOT NULL,
@@ -404,6 +413,7 @@ async function initDB() {
     color_mode        VARCHAR(20)  NOT NULL DEFAULT 'mono',
     sort_order        SMALLINT     NOT NULL DEFAULT 0,
     is_active         BOOLEAN      NOT NULL DEFAULT true,
+    is_featured       BOOLEAN      NOT NULL DEFAULT false,
     image_filename    VARCHAR(255),
     description       TEXT,
     paper_format         VARCHAR(20),
@@ -418,20 +428,23 @@ async function initDB() {
     scan_resolution_dpi  VARCHAR(50),
     cartridge_note       VARCHAR(150)
   )`);
+  await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT TRUE`);
+  await pool.query(`ALTER TABLE printers ALTER COLUMN is_featured SET DEFAULT FALSE`);
+  await pool.query(`ALTER TABLE printers ALTER COLUMN is_featured SET NOT NULL`);
   await pool.query(`ALTER TABLE services ADD COLUMN IF NOT EXISTS description TEXT`);
   await pool.query(`ALTER TABLE services ADD COLUMN IF NOT EXISTS image_filename VARCHAR(255)`);
-  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS description TEXT`);
-  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS paper_format VARCHAR(20)`);
-  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS print_speed_ppm NUMERIC(5,1)`);
-  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS resolution_dpi VARCHAR(50)`);
-  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS is_duplex BOOLEAN`);
-  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS is_wifi BOOLEAN`);
-  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS is_ethernet BOOLEAN`);
-  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS is_usb BOOLEAN`);
-  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS release_year SMALLINT`);
-  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS has_adf BOOLEAN`);
-  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS scan_resolution_dpi VARCHAR(50)`);
-  await pool.query(`ALTER TABLE featured_printers ADD COLUMN IF NOT EXISTS cartridge_note VARCHAR(150)`);
+  await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS description TEXT`);
+  await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS paper_format VARCHAR(20)`);
+  await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS print_speed_ppm NUMERIC(5,1)`);
+  await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS resolution_dpi VARCHAR(50)`);
+  await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS is_duplex BOOLEAN`);
+  await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS is_wifi BOOLEAN`);
+  await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS is_ethernet BOOLEAN`);
+  await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS is_usb BOOLEAN`);
+  await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS release_year SMALLINT`);
+  await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS has_adf BOOLEAN`);
+  await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS scan_resolution_dpi VARCHAR(50)`);
+  await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS cartridge_note VARCHAR(150)`);
   fs.mkdirSync(featuredDir, { recursive: true });
   fs.mkdirSync(servicesUploadDir, { recursive: true });
   fs.mkdirSync(assetsPrintersDir, { recursive: true });
@@ -509,12 +522,12 @@ function specRows(row, labels) {
 }
 
 async function fillFeaturedDetails() {
-  const { rows } = await pool.query("SELECT id, brand, model FROM featured_printers");
+  const { rows } = await pool.query("SELECT id, brand, model FROM printers");
   for (const row of rows) {
     const extra = FEATURED_DETAILS[row.brand + "|" + row.model];
     if (!extra) continue;
     await pool.query(
-      `UPDATE featured_printers SET
+      `UPDATE printers SET
          description         = COALESCE(description, $1),
          paper_format        = COALESCE(paper_format, $2),
          print_speed_ppm     = COALESCE(print_speed_ppm, $3),
@@ -539,10 +552,10 @@ async function fillFeaturedDetails() {
 }
 
 async function ensureFeaturedSeed() {
-  const { rows } = await pool.query("SELECT brand, model FROM featured_printers");
+  const { rows } = await pool.query("SELECT brand, model FROM printers");
   const have = new Set(rows.map(r => r.brand + "|" + r.model));
   const { rows: maxRows } = await pool.query(
-    "SELECT COALESCE(MAX(sort_order), 0)::int AS m FROM featured_printers"
+    "SELECT COALESCE(MAX(sort_order), 0)::int AS m FROM printers"
   );
   let order = maxRows[0].m;
   for (let i = 0; i < FEATURED_SEED.length; i++) {
@@ -550,9 +563,9 @@ async function ensureFeaturedSeed() {
     if (have.has(brand + "|" + model)) continue;
     order += 1;
     await pool.query(
-      `INSERT INTO featured_printers
-         (brand, model, device_type, print_technology, color_mode, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
+      `INSERT INTO printers
+         (brand, model, device_type, print_technology, color_mode, sort_order, is_featured)
+       VALUES ($1, $2, $3, $4, $5, $6, true)`,
       [brand, model, deviceType, tech, color, order]
     );
   }
@@ -790,6 +803,11 @@ const serviceUpload = multer({
   },
 });
 
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
 // ── Express настройки ─────────────────────────────────────────────────────────
 app.set("trust proxy", 1);
 app.set("view engine", "ejs");
@@ -907,20 +925,20 @@ function xmlEscape(s) {
 async function loadPublicLists() {
   const { rows: serviceRows } = await pool.query("SELECT * FROM services ORDER BY id");
   const { rows: contactRows } = await pool.query("SELECT * FROM contacts ORDER BY id");
-  const { rows: featuredRows } = await pool.query(
-    `SELECT * FROM featured_printers
+  const { rows: printerRows } = await pool.query(
+    `SELECT * FROM printers
       WHERE is_active = true
-      ORDER BY sort_order, id
-      LIMIT $1`,
-    [FEATURED_MAX]
+      ORDER BY sort_order, id`
   );
   const contacts = mapContacts(contactRows);
   const seo = pickSeoFromContacts(contacts);
   const hasHero = fs.existsSync(heroPath);
+  const models = printerRows.map(mapFeatured);
   return {
     services: serviceRows.map(mapService),
     contacts,
-    featured: featuredRows.map(mapFeatured),
+    featured: models.filter(m => m.is_featured).slice(0, FEATURED_MAX),
+    models,
     seo,
     hasHero,
   };
@@ -972,7 +990,8 @@ app.get("/sitemap.xml", async (req, res) => {
     const data = await loadPublicLists();
     const urls = [absUrl("/")];
     data.services.forEach(s => { if (s.slug) urls.push(absUrl("/uslugi/" + s.slug)); });
-    data.featured.forEach(p => { if (p.slug) urls.push(absUrl("/modeli/" + p.slug)); });
+    urls.push(absUrl("/modeli"));
+    data.models.forEach(p => { if (p.slug) urls.push(absUrl("/modeli/" + p.slug)); });
     const body = '<?xml version="1.0" encoding="UTF-8"?>\n'
       + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
       + urls.map(u => "  <url><loc>" + xmlEscape(u) + "</loc></url>\n").join("")
@@ -1034,10 +1053,64 @@ app.get("/uslugi/:slug", async (req, res) => {
   }
 });
 
+app.get("/modeli", async (req, res) => {
+  try {
+    const data = await loadPublicLists();
+    const pageUrl = absUrl("/modeli");
+    const title = "Каталог принтеров и МФУ — заправка и ремонт в " + SITE_CITY_IN;
+    const description = "Каталог моделей принтеров и МФУ: характеристики, совместимые картриджи, заправка и ремонт в " + SITE_CITY + ".";
+    const business = localBusinessLd(data.contacts);
+    const groups = [];
+    const byBrand = new Map();
+    data.models.forEach(p => {
+      let g = byBrand.get(p.brand);
+      if (!g) {
+        g = { brand: p.brand, brandSlug: p.brandSlug, items: [] };
+        byBrand.set(p.brand, g);
+        groups.push(g);
+      }
+      g.items.push(p);
+    });
+    res.render("models", publicLocals(data, {
+      title,
+      description,
+      heading: "Каталог принтеров и МФУ",
+      pageUrl,
+      groups,
+      jsonLd: ldString({
+        "@context": "https://schema.org",
+        "@graph": [
+          business,
+          {
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Главная", item: absUrl("/") },
+              { "@type": "ListItem", position: 2, name: "Каталог моделей", item: pageUrl },
+            ],
+          },
+          {
+            "@type": "ItemList",
+            name: "Каталог принтеров и МФУ",
+            itemListElement: data.models.map((p, i) => ({
+              "@type": "ListItem",
+              position: i + 1,
+              name: p.brand + " " + p.model,
+              url: absUrl("/modeli/" + p.slug),
+            })),
+          },
+        ],
+      }),
+    }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Ошибка базы данных");
+  }
+});
+
 app.get("/modeli/:slug", async (req, res) => {
   try {
     const data = await loadPublicLists();
-    const printer = data.featured.find(p => p.slug === req.params.slug);
+    const printer = data.models.find(p => p.slug === req.params.slug);
     if (!printer) return res.status(404).send("Модель не найдена");
     const pageUrl = absUrl("/modeli/" + printer.slug);
     const title = "Заправка и ремонт " + printer.brand + " " + printer.model + " в " + SITE_CITY_IN;
@@ -1065,7 +1138,8 @@ app.get("/modeli/:slug", async (req, res) => {
             "@type": "BreadcrumbList",
             itemListElement: [
               { "@type": "ListItem", position: 1, name: "Главная", item: absUrl("/") },
-              { "@type": "ListItem", position: 2, name: printer.brand + " " + printer.model, item: pageUrl },
+              { "@type": "ListItem", position: 2, name: "Каталог моделей", item: absUrl("/modeli") },
+              { "@type": "ListItem", position: 3, name: printer.brand + " " + printer.model, item: pageUrl },
             ],
           },
         ],
@@ -1097,12 +1171,29 @@ if (!adminPass) {
 } else {
   const auth = basicAuth(adminUser, adminPass);
 
+  function importResultFromQuery(q) {
+    if (q.import === "ok") {
+      const failed = Number(q.failed) || 0;
+      return {
+        ok: true,
+        text: "Импорт завершён: добавлено " + (q.inserted || 0) + ", обновлено " + (q.updated || 0)
+          + (failed ? ", строк с ошибками: " + failed + " (подробности в логе сервера)" : ""),
+      };
+    }
+    if (q.import === "empty") return { ok: false, text: "Файл не выбран или пустой." };
+    if (q.import === "error") return { ok: false, text: "Не удалось разобрать CSV: нужна кодировка UTF-8 и колонки brand и model в заголовке." };
+    return null;
+  }
+
   async function renderAdmin(req, res) {
     try {
       const { rows: services } = await pool.query("SELECT * FROM services ORDER BY id");
       const { rows: contacts } = await pool.query("SELECT * FROM contacts ORDER BY id");
       const { rows: featured } = await pool.query(
-        "SELECT * FROM featured_printers ORDER BY sort_order, id"
+        "SELECT * FROM printers WHERE is_featured = true ORDER BY sort_order, id"
+      );
+      const { rows: catalog } = await pool.query(
+        "SELECT * FROM printers ORDER BY is_featured DESC, sort_order, id"
       );
       const hasHero = fs.existsSync(heroPath);
       res.render("admin", {
@@ -1110,7 +1201,10 @@ if (!adminPass) {
         contacts,
         hasHero,
         featured: featured.map(mapFeatured),
+        catalog: catalog.map(mapFeatured),
         featuredMax: FEATURED_MAX,
+        importResult: importResultFromQuery(req.query),
+        carouselFull: req.query.carousel_full === "1",
       });
     } catch (err) {
       res.status(500).send("Ошибка");
@@ -1263,7 +1357,7 @@ if (!adminPass) {
   }
 
   app.get("/admin/featured/:id/edit", auth, async (req, res) => {
-    const { rows } = await pool.query("SELECT * FROM featured_printers WHERE id = $1", [req.params.id]);
+    const { rows } = await pool.query("SELECT * FROM printers WHERE id = $1", [req.params.id]);
     if (!rows[0]) return res.redirect("/home");
     res.render("edit-printer", { printer: mapFeatured(rows[0]) });
   });
@@ -1276,7 +1370,7 @@ if (!adminPass) {
   }, async (req, res) => {
     const parsed = parseFeaturedBody(req.body);
     if (!parsed) return res.redirect("/home");
-    const { rows } = await pool.query("SELECT * FROM featured_printers WHERE id = $1", [req.params.id]);
+    const { rows } = await pool.query("SELECT * FROM printers WHERE id = $1", [req.params.id]);
     if (!rows[0]) return res.redirect("/home");
 
     let imageFilename = rows[0].image_filename;
@@ -1289,7 +1383,7 @@ if (!adminPass) {
     }
 
     await pool.query(
-      `UPDATE featured_printers
+      `UPDATE printers
           SET brand = $1, model = $2, device_type = $3, print_technology = $4,
               color_mode = $5, is_active = $6, image_filename = $7, description = $8,
               paper_format = $9, print_speed_ppm = $10, resolution_dpi = $11,
@@ -1303,6 +1397,15 @@ if (!adminPass) {
        parsed.release_year, parsed.has_adf, parsed.scan_resolution_dpi, parsed.cartridge_note,
        req.params.id]
     );
+
+    const wantFeatured = req.body.is_featured === "on";
+    if (wantFeatured !== rows[0].is_featured) {
+      if (wantFeatured) {
+        const { rows: cnt } = await pool.query("SELECT COUNT(*)::int AS n FROM printers WHERE is_featured = true");
+        if (cnt[0].n >= FEATURED_MAX) return res.redirect("/home?carousel_full=1");
+      }
+      await pool.query("UPDATE printers SET is_featured = $1 WHERE id = $2", [wantFeatured, req.params.id]);
+    }
     res.redirect("/home");
   });
 
@@ -1313,12 +1416,12 @@ if (!adminPass) {
     });
   }, async (req, res) => {
     if (!req.file) return res.redirect("/home");
-    const { rows } = await pool.query("SELECT image_filename FROM featured_printers WHERE id = $1", [req.params.id]);
+    const { rows } = await pool.query("SELECT image_filename FROM printers WHERE id = $1", [req.params.id]);
     if (!rows[0]) return res.redirect("/home");
     if (rows[0].image_filename && rows[0].image_filename !== req.file.filename) {
       removeFeaturedImage(rows[0].image_filename);
     }
-    await pool.query("UPDATE featured_printers SET image_filename = $1 WHERE id = $2",
+    await pool.query("UPDATE printers SET image_filename = $1 WHERE id = $2",
       [req.file.filename, req.params.id]);
     res.redirect("/home");
   });
@@ -1326,13 +1429,13 @@ if (!adminPass) {
   app.post("/admin/featured/add", auth, async (req, res) => {
     const parsed = parseFeaturedBody(req.body);
     if (!parsed) return res.redirect("/home");
-    const { rows } = await pool.query("SELECT COUNT(*)::int AS n FROM featured_printers");
+    const { rows } = await pool.query("SELECT COUNT(*)::int AS n FROM printers WHERE is_featured = true");
     if (rows[0].n >= FEATURED_MAX) return res.redirect("/home");
-    const { rows: maxRows } = await pool.query("SELECT COALESCE(MAX(sort_order), 0)::int AS m FROM featured_printers");
+    const { rows: maxRows } = await pool.query("SELECT COALESCE(MAX(sort_order), 0)::int AS m FROM printers WHERE is_featured = true");
     await pool.query(
-      `INSERT INTO featured_printers
-         (brand, model, device_type, print_technology, color_mode, sort_order, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, true)`,
+      `INSERT INTO printers
+         (brand, model, device_type, print_technology, color_mode, sort_order, is_active, is_featured)
+       VALUES ($1, $2, $3, $4, $5, $6, true, true)`,
       [parsed.brand, parsed.model, parsed.device_type, parsed.print_technology,
        parsed.color_mode, maxRows[0].m + 1]
     );
@@ -1340,15 +1443,15 @@ if (!adminPass) {
   });
 
   app.post("/admin/featured/:id/delete", auth, async (req, res) => {
-    const { rows } = await pool.query("SELECT image_filename FROM featured_printers WHERE id = $1", [req.params.id]);
+    const { rows } = await pool.query("SELECT image_filename FROM printers WHERE id = $1", [req.params.id]);
     if (rows[0]) removeFeaturedImage(rows[0].image_filename);
-    await pool.query("DELETE FROM featured_printers WHERE id = $1", [req.params.id]);
+    await pool.query("DELETE FROM printers WHERE id = $1", [req.params.id]);
     res.redirect("/home");
   });
 
   app.post("/admin/featured/:id/move", auth, async (req, res) => {
     const dir = req.body.dir === "up" ? -1 : 1;
-    const { rows } = await pool.query("SELECT id FROM featured_printers ORDER BY sort_order, id");
+    const { rows } = await pool.query("SELECT id FROM printers WHERE is_featured = true ORDER BY sort_order, id");
     const idx = rows.findIndex(r => String(r.id) === String(req.params.id));
     const swap = idx + dir;
     if (idx === -1 || swap < 0 || swap >= rows.length) return res.redirect("/home");
@@ -1357,8 +1460,64 @@ if (!adminPass) {
     ordered[idx] = ordered[swap];
     ordered[swap] = tmp;
     for (let i = 0; i < ordered.length; i++) {
-      await pool.query("UPDATE featured_printers SET sort_order = $1 WHERE id = $2", [i + 1, ordered[i]]);
+      await pool.query("UPDATE printers SET sort_order = $1 WHERE id = $2", [i + 1, ordered[i]]);
     }
+    res.redirect("/home");
+  });
+
+  // ── Каталог: импорт CSV и точечные операции ──
+  app.post("/admin/printers/import", auth, csvUpload.single("csv"), async (req, res) => {
+    try {
+      if (!req.file || !req.file.buffer || !req.file.buffer.length) return res.redirect("/home?import=empty");
+      let text = req.file.buffer.toString("utf8");
+      if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+      const parsed = parsePrintersCsv(text);
+      const result = await upsertPrinters(pool, parsed.records);
+      const failed = parsed.errors.concat(result.failed);
+      if (failed.length) console.error("[import] строки с ошибками:", failed);
+      res.redirect("/home?import=ok&inserted=" + result.inserted + "&updated=" + result.updated + "&failed=" + failed.length);
+    } catch (err) {
+      console.error("[import]", err);
+      res.redirect("/home?import=error");
+    }
+  });
+
+  app.post("/admin/printers/add", auth, async (req, res) => {
+    const brand = String(req.body.brand || "").trim().slice(0, 100);
+    const model = String(req.body.model || "").trim().slice(0, 150);
+    if (!brand || !model) return res.redirect("/home");
+    const wantFeatured = req.body.is_featured === "on";
+    if (wantFeatured) {
+      const { rows } = await pool.query("SELECT COUNT(*)::int AS n FROM printers WHERE is_featured = true");
+      if (rows[0].n >= FEATURED_MAX) return res.redirect("/home?carousel_full=1");
+    }
+    const deviceType = pickEnum(req.body.device_type, DEVICE_TYPES, "printer");
+    const tech = pickEnum(req.body.print_technology, PRINT_TECHS, "laser");
+    const color = pickEnum(req.body.color_mode, COLOR_MODES, "mono");
+    const { rows: maxRows } = await pool.query("SELECT COALESCE(MAX(sort_order), 0)::int AS m FROM printers");
+    await pool.query(
+      `INSERT INTO printers (brand, model, device_type, print_technology, color_mode, sort_order, is_featured)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [brand, model, deviceType, tech, color, maxRows[0].m + 1, wantFeatured]
+    );
+    res.redirect("/home");
+  });
+
+  app.post("/admin/printers/:id/toggle-featured", auth, async (req, res) => {
+    const { rows } = await pool.query("SELECT is_featured FROM printers WHERE id = $1", [req.params.id]);
+    if (!rows[0]) return res.redirect("/home");
+    if (!rows[0].is_featured) {
+      const { rows: cnt } = await pool.query("SELECT COUNT(*)::int AS n FROM printers WHERE is_featured = true");
+      if (cnt[0].n >= FEATURED_MAX) return res.redirect("/home?carousel_full=1");
+    }
+    await pool.query("UPDATE printers SET is_featured = NOT is_featured WHERE id = $1", [req.params.id]);
+    res.redirect("/home");
+  });
+
+  app.post("/admin/printers/:id/delete", auth, async (req, res) => {
+    const { rows } = await pool.query("SELECT image_filename FROM printers WHERE id = $1", [req.params.id]);
+    if (rows[0]) removeFeaturedImage(rows[0].image_filename);
+    await pool.query("DELETE FROM printers WHERE id = $1", [req.params.id]);
     res.redirect("/home");
   });
 }
