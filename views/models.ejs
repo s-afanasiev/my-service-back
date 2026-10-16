@@ -15,17 +15,46 @@
       <h1><%= heading %></h1>
       <p class="detail-desc">Проверенные модели, которые чаще всего приносят в ремонт. Для каждой — характеристики, картридж и цены на заправку. Не нашли свою модель? Позвоните — заправим почти любую.</p>
 
+      <% if (groups.length) { %>
+        <div class="cat-tools" data-cat-tools>
+          <div class="cat-search-wrap">
+            <input type="search"
+                   class="cat-search"
+                   data-cat-search
+                   placeholder="Поиск по модели или картриджу (например: P1102, 85A, MF3010)..."
+                   autocomplete="off"
+                   aria-label="Поиск по модели или картриджу" />
+          </div>
+          <div class="cat-chips" role="group" aria-label="Фильтр по бренду">
+            <button type="button" class="cat-chip is-active" data-brand-filter="all">Все (<%= groups.reduce(function(n, g) { return n + g.items.length; }, 0) %>)</button>
+            <% groups.forEach(function(g) { %>
+              <button type="button"
+                      class="cat-chip"
+                      data-brand-filter="<%= g.brandSlug %>"
+                      style="--accent: var(--brand-<%= g.brandSlug %>, var(--primary))">
+                <%= g.brand %> (<%= g.items.length %>)
+              </button>
+            <% }); %>
+          </div>
+        </div>
+        <div class="empty-state" data-cat-empty hidden>
+          Ничего не найдено. Попробуйте ввести часть названия модели или позвоните нам — заправим и отремонтируем почти любой аппарат.
+        </div>
+      <% } %>
+
       <% if (!groups.length) { %>
         <div class="empty-state">Модели пока не добавлены.</div>
       <% } else { %>
         <% groups.forEach(function(g) { %>
-          <section class="cat-brand" aria-label="<%= g.brand %>">
+          <section class="cat-brand" aria-label="<%= g.brand %>" data-brand-section="<%= g.brandSlug %>">
             <h2 class="cat-brand-title">
               <span class="cat-brand-dot" style="--accent: var(--brand-<%= g.brandSlug %>, var(--primary))"></span><%= g.brand %>
             </h2>
             <ul class="cat-grid">
               <% g.items.forEach(function(p) { %>
-                <li>
+                <li data-model-item
+                    data-brand="<%= g.brandSlug %>"
+                    data-search="<%= (p.brand + ' ' + p.model + ' ' + (p.cartridge_note || '') + ' ' + p.meta).toLowerCase() %>">
                   <a class="cat-card" href="/modeli/<%= p.slug %>">
                     <span class="cat-art" style="--accent: var(--brand-<%= g.brandSlug %>, var(--primary))">
                       <% if (p.imageUrl) { %>
@@ -46,6 +75,9 @@
                     </span>
                     <span class="cat-model"><%= p.model %></span>
                     <span class="cat-meta"><%= p.meta %></span>
+                    <% if (p.cartridge_note) { %>
+                      <span class="cat-cartridge">Картридж: <%= p.cartridge_note %></span>
+                    <% } %>
                   </a>
                 </li>
               <% }); %>
@@ -57,5 +89,50 @@
   </article>
 
   <%- include('partials/footer') %>
+
+  <script>
+  (function () {
+    var searchInput = document.querySelector("[data-cat-search]");
+    var chips = [].slice.call(document.querySelectorAll("[data-brand-filter]"));
+    var sections = [].slice.call(document.querySelectorAll("[data-brand-section]"));
+    var emptyBox = document.querySelector("[data-cat-empty]");
+    if (!searchInput || !sections.length) return;
+
+    var activeBrand = "all";
+
+    function applyFilter() {
+      var q = searchInput.value.replace(/^\s+|\s+$/g, "").toLowerCase();
+      var totalVisible = 0;
+
+      sections.forEach(function (sec) {
+        var brandMatch = activeBrand === "all" || sec.getAttribute("data-brand-section") === activeBrand;
+        var items = [].slice.call(sec.querySelectorAll("[data-model-item]"));
+        var visibleInSec = 0;
+
+        items.forEach(function (li) {
+          var hay = li.getAttribute("data-search") || "";
+          var show = brandMatch && (!q || hay.indexOf(q) !== -1);
+          li.hidden = !show;
+          if (show) visibleInSec++;
+        });
+
+        sec.hidden = visibleInSec === 0;
+        totalVisible += visibleInSec;
+      });
+
+      if (emptyBox) emptyBox.hidden = totalVisible > 0;
+    }
+
+    searchInput.addEventListener("input", applyFilter);
+
+    chips.forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        activeBrand = chip.getAttribute("data-brand-filter") || "all";
+        chips.forEach(function (c) { c.classList.toggle("is-active", c === chip); });
+        applyFilter();
+      });
+    });
+  })();
+  </script>
 </body>
 </html>
