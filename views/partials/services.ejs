@@ -1,7 +1,11 @@
-<section class="section" aria-label="Список услуг">
+<section class="section" id="uslugi" aria-label="Список услуг">
   <% if (services.length === 0) { %>
     <div class="empty-state">Услуги пока не добавлены.</div>
   <% } else { %>
+    <div class="section-head">
+      <h2>Услуги и цены</h2>
+      <p>Нажмите на услугу, чтобы посмотреть подробности, симптомы поломки и бренды расходников</p>
+    </div>
     <ul class="services">
       <% services.forEach(function(s, i) { %>
         <li>

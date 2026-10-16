@@ -3,6 +3,12 @@
   <h1><%= heading %></h1>
   <p class="lead"><%= subheading %></p>
 
+  <div class="hero-facts" aria-label="Преимущества">
+    <span class="hero-fact">Выезд в день обращения</span>
+    <span class="hero-fact">Гарантия на работы</span>
+    <a class="hero-fact" href="/modeli">Каталог 50+ моделей →</a>
+  </div>
+
   <% if (contacts.length > 0) { %>
     <nav class="contacts" aria-label="Контакты">
       <% contacts.forEach(function(c) { %>

@@ -307,6 +307,8 @@
     if (modal && !modal.hidden) return;
     var dx = e.deltaX;
     var dy = e.deltaY;
+    var isHorizontal = Math.abs(dx) > Math.abs(dy) || e.shiftKey;
+    if (!isHorizontal) return;
     var delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
     if (!delta) return;
     e.preventDefault();
