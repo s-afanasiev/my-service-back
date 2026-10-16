@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body>
+  <%- include('partials/page-top') %>
+
+  <article class="detail">
+    <div class="detail-card">
+      <h1><%= heading %></h1>
+      <p class="detail-desc">Страница не найдена или была перемещена. Посмотрите весь каталог моделей или список услуг на главной странице — либо сразу позвоните нам.</p>
+      <p style="margin: 1rem 0;">
+        <a class="featured-all" href="/">← На главную (услуги и цены)</a>
+        &nbsp;·&nbsp;
+        <a class="featured-all" href="/modeli">Каталог моделей →</a>
+      </p>
+      <%- include('partials/cta-box', { ctaTitle: 'Связаться с мастером:' }) %>
+    </div>
+  </article>
+
+  <%- include('partials/footer') %>
+</body>
+</html>

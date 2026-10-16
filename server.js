@@ -1007,7 +1007,14 @@ app.get("/uslugi/:slug", async (req, res) => {
   try {
     const data = await loadPublicLists();
     const service = data.services.find(s => s.slug === req.params.slug);
-    if (!service) return res.status(404).send("Услуга не найдена");
+    if (!service) {
+      return res.status(404).render("not-found", publicLocals(data, {
+        title: "Страница не найдена",
+        description: HOME_DESC,
+        heading: "Услуга не найдена",
+        pageUrl: absUrl(req.path),
+      }));
+    }
     const pageUrl = absUrl("/uslugi/" + service.slug);
     const title = prettyName(service.name) + " в " + SITE_CITY_IN;
     const description = (service.description || HOME_DESC).replace(/\s+/g, " ").trim().slice(0, 160);
@@ -1111,7 +1118,14 @@ app.get("/modeli/:slug", async (req, res) => {
   try {
     const data = await loadPublicLists();
     const printer = data.models.find(p => p.slug === req.params.slug);
-    if (!printer) return res.status(404).send("Модель не найдена");
+    if (!printer) {
+      return res.status(404).render("not-found", publicLocals(data, {
+        title: "Страница не найдена",
+        description: HOME_DESC,
+        heading: "Модель не найдена",
+        pageUrl: absUrl(req.path),
+      }));
+    }
     const refillService = data.services.find(s => s.kind === "refill");
     const pageUrl = absUrl("/modeli/" + printer.slug);
     const title = "Заправка и ремонт " + printer.brand + " " + printer.model + " в " + SITE_CITY_IN;
