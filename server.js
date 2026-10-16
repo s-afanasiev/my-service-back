@@ -1112,6 +1112,7 @@ app.get("/modeli/:slug", async (req, res) => {
     const data = await loadPublicLists();
     const printer = data.models.find(p => p.slug === req.params.slug);
     if (!printer) return res.status(404).send("Модель не найдена");
+    const refillService = data.services.find(s => s.kind === "refill");
     const pageUrl = absUrl("/modeli/" + printer.slug);
     const title = "Заправка и ремонт " + printer.brand + " " + printer.model + " в " + SITE_CITY_IN;
     const description = (printer.description || ("Заправка картриджа и ремонт " + printer.brand + " " + printer.model + " в " + SITE_CITY + ".")).replace(/\s+/g, " ").trim().slice(0, 160);
@@ -1122,6 +1123,7 @@ app.get("/modeli/:slug", async (req, res) => {
       heading: title,
       pageUrl,
       printer,
+      refillService,
       jsonLd: ldString({
         "@context": "https://schema.org",
         "@graph": [

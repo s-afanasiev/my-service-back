@@ -26,6 +26,16 @@
         <% } %>
       </div>
       <p class="detail-meta"><%= printer.brand %> · <%= printer.meta %></p>
+      <div class="printer-badges">
+        <% if (printer.cartridge_note) { %>
+          <span class="detail-price">Картридж: <%= printer.cartridge_note %></span>
+        <% } %>
+        <% if (typeof refillService !== "undefined" && refillService) { %>
+          <a class="detail-price detail-price-link" href="/uslugi/<%= refillService.slug %>">
+            Заправка — от <%= refillService.priceFormatted %>
+          </a>
+        <% } %>
+      </div>
       <h1><%= heading %></h1>
       <% if (printer.description) { %>
         <p class="detail-desc"><%= printer.description %></p>
