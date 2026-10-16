@@ -1559,6 +1559,169 @@
     line-height: 1.45;
   }
 
+  /* ── контентные блоки страницы модели: цены, симптомы, FAQ ── */
+  .content-block {
+    margin: 1.35rem 0 0;
+    padding-top: 1.15rem;
+    border-top: 1px solid rgba(226, 232, 252, .85);
+  }
+  .block-title {
+    font-size: 1.12rem;
+    font-weight: 800;
+    letter-spacing: -.3px;
+    margin: 0 0 .75rem;
+    color: var(--text);
+  }
+  .price-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: .45rem;
+  }
+  .price-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .55rem .85rem;
+    background: var(--surface-2);
+    border: 1px solid rgba(226, 232, 252, .9);
+    border-radius: 12px;
+  }
+  .price-name {
+    color: var(--text);
+    font-weight: 600;
+    font-size: .92rem;
+    text-decoration: none;
+  }
+  .price-name:hover { color: var(--primary); }
+  .price-value {
+    white-space: nowrap;
+    font-size: .92rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    background: var(--grad-pill);
+    border: 1px solid rgba(76, 110, 245, .16);
+    padding: .22rem .7rem;
+    border-radius: 999px;
+  }
+  .symptom-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+  }
+  .symptom-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .25rem .65rem;
+    padding: .55rem .85rem;
+    background: var(--surface-2);
+    border: 1px solid rgba(226, 232, 252, .9);
+    border-radius: 12px;
+  }
+  .symptom-sign {
+    font-weight: 700;
+    font-size: .9rem;
+    color: var(--text);
+  }
+  .symptom-sign::before {
+    content: "→";
+    margin-right: .45rem;
+    color: var(--primary);
+  }
+  .symptom-cause {
+    font-size: .88rem;
+    color: var(--muted);
+  }
+  .symptom-cause a {
+    color: var(--primary);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .symptom-cause a:hover { text-decoration: underline; }
+  .faq-item {
+    padding: .7rem 0;
+    border-top: 1px solid rgba(226, 232, 252, .7);
+  }
+  .faq-item:first-of-type { border-top: none; padding-top: 0; }
+  .faq-q {
+    font-size: .97rem;
+    font-weight: 700;
+    margin: 0 0 .35rem;
+    color: var(--text);
+  }
+  .faq-a {
+    font-size: .92rem;
+    line-height: 1.55;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  /* ── раздел «Статьи» ── */
+  .article-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: .7rem;
+    margin-top: 1.15rem;
+  }
+  .article-link {
+    display: block;
+    padding: .95rem 1.15rem;
+    background: var(--surface-2);
+    border: 1px solid rgba(226, 232, 252, .9);
+    border-radius: 14px;
+    color: inherit;
+    text-decoration: none;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .article-link:hover {
+    transform: translateY(-2px);
+    border-color: rgba(76, 110, 245, .38);
+    box-shadow: 0 12px 30px rgba(60, 80, 190, .12);
+  }
+  .article-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -.2px;
+    margin: 0 0 .35rem;
+  }
+  .article-summary {
+    font-size: .9rem;
+    line-height: 1.5;
+    color: var(--muted);
+    margin: 0;
+  }
+  .article-date {
+    margin: .5rem 0 0;
+    font-size: .78rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+  .article-body {
+    margin-top: 1.15rem;
+  }
+  .article-body h2 {
+    font-size: 1.12rem;
+    font-weight: 800;
+    letter-spacing: -.3px;
+    margin: 1.35rem 0 .55rem;
+    color: var(--text);
+  }
+  .article-body p {
+    font-size: .96rem;
+    line-height: 1.65;
+    color: var(--text);
+    margin: 0 0 .85rem;
+    white-space: pre-wrap;
+  }
+  .article-back { margin: 1.25rem 0 0; }
+  .footer-links { margin-bottom: .35rem; }
+
   /* ── ссылка на каталог из блока «Популярные модели» ── */
   .featured-all {
     color: var(--primary);

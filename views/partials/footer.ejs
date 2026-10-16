@@ -1,13 +1,19 @@
 <footer class="site-footer">
   <p class="footer-nap">
     <%= typeof siteName !== "undefined" && siteName ? siteName : heading %>
-    <% if (typeof city !== "undefined" && city) { %> · <%= city %><% } %>
+    <% if (typeof serviceArea !== "undefined" && serviceArea) { %> · <%= serviceArea %><% } %>
+    <% if (typeof workLabel !== "undefined" && workLabel) { %> · <%= workLabel %><% } %>
     <% if (typeof telephone !== "undefined" && telephone) { %>
       · <a href="tel:<%= telephone %>"><%= telephone %></a>
     <% } %>
     <% if (typeof email !== "undefined" && email) { %>
       · <a href="mailto:<%= email %>"><%= email %></a>
     <% } %>
+  </p>
+  <p class="footer-links">
+    <a href="/#uslugi">Услуги и цены</a>
+    · <a href="/modeli">Каталог моделей</a>
+    · <a href="/stati">Статьи</a>
   </p>
   <p>© <%= new Date().getFullYear() %> <%= typeof heading !== "undefined" ? heading : "" %> — все цены указаны в рублях</p>
 </footer>

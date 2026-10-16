@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body>
+  <%- include('partials/page-top') %>
+
+  <nav class="crumbs" aria-label="Навигация">
+    <a href="/">Главная</a> / <a href="/stati">Статьи</a> / <%= article.title %>
+  </nav>
+
+  <article class="detail">
+    <div class="detail-card">
+      <h1><%= heading %></h1>
+      <p class="article-date"><%= new Date(article.date).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }) %></p>
+
+      <div class="article-body">
+        <% article.sections.forEach(function(sec) { %>
+          <h2><%= sec.h2 %></h2>
+          <% sec.paragraphs.forEach(function(p) { %>
+            <p><%= p %></p>
+          <% }); %>
+        <% }); %>
+      </div>
+
+      <p class="article-back">
+        <a class="featured-all" href="/stati">← Все статьи</a>
+        &nbsp;·&nbsp;
+        <a class="featured-all" href="/modeli">Каталог моделей →</a>
+      </p>
+
+      <%- include('partials/cta-box', { ctaTitle: 'Нужна заправка или ремонт? Напишите мастеру:' }) %>
+    </div>
+  </article>
+
+  <%- include('partials/footer') %>
+</body>
+</html>

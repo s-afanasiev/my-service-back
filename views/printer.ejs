@@ -52,6 +52,48 @@
           </tbody>
         </table>
       <% } %>
+      <% if (typeof priceServices !== "undefined" && priceServices && priceServices.length) { %>
+        <section class="content-block" aria-label="Цены на обслуживание">
+          <h2 class="block-title">Цены на обслуживание <%= printer.brand %> <%= printer.model %></h2>
+          <ul class="price-list">
+            <% priceServices.forEach(function(s) { %>
+              <li class="price-row">
+                <a class="price-name" href="/uslugi/<%= s.slug %>"><%= s.name %></a>
+                <span class="price-value"><%= s.priceFormatted %></span>
+              </li>
+            <% }); %>
+          </ul>
+        </section>
+      <% } %>
+
+      <% if (typeof symptoms !== "undefined" && symptoms && symptoms.length) { %>
+        <section class="content-block" aria-label="Типовые неисправности">
+          <h2 class="block-title">Если появились проблемы</h2>
+          <ul class="symptom-list">
+            <% symptoms.forEach(function(x) { %>
+              <li class="symptom-row">
+                <span class="symptom-sign"><%= x.sign %></span>
+                <span class="symptom-cause">
+                  <% if (x.service) { %><a href="/uslugi/<%= x.service.slug %>"><%= x.cause %></a><% } else { %><%= x.cause %><% } %>
+                </span>
+              </li>
+            <% }); %>
+          </ul>
+        </section>
+      <% } %>
+
+      <% if (typeof faq !== "undefined" && faq && faq.length) { %>
+        <section class="content-block" aria-label="Частые вопросы">
+          <h2 class="block-title">Частые вопросы</h2>
+          <% faq.forEach(function(f) { %>
+            <div class="faq-item">
+              <h3 class="faq-q"><%= f.q %></h3>
+              <p class="faq-a"><%= f.a %></p>
+            </div>
+          <% }); %>
+        </section>
+      <% } %>
+
       <%- include('partials/cta-box', { ctaTitle: 'Заправить или отремонтировать ' + printer.brand + ' ' + printer.model + ':' }) %>
     </div>
   </article>

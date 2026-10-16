@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body>
+  <%- include('partials/page-top') %>
+
+  <nav class="crumbs" aria-label="Навигация">
+    <a href="/">Главная</a> / Статьи
+  </nav>
+
+  <article class="detail">
+    <div class="detail-card">
+      <h1><%= heading %></h1>
+      <p class="detail-desc">Практические материалы о заправке картриджей, ремонте принтеров и выборе техники. Пишем по опыту мастерской — с ценами, симптомами поломок и честными рекомендациями.</p>
+
+      <ul class="article-list">
+        <% articles.forEach(function(a) { %>
+          <li class="article-item">
+            <a class="article-link" href="/stati/<%= a.slug %>">
+              <h2 class="article-title"><%= a.title %></h2>
+              <p class="article-summary"><%= a.summary %></p>
+              <p class="article-date"><%= new Date(a.date).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }) %></p>
+            </a>
+          </li>
+        <% }); %>
+      </ul>
+    </div>
+  </article>
+
+  <%- include('partials/footer') %>
+</body>
+</html>
