@@ -80,7 +80,6 @@
     <div class="printer-modal-desc-block">
       <h4>Описание</h4>
       <p class="printer-modal-desc" data-modal-desc></p>
-      <a class="modal-page-link" data-modal-page href="/">Страница модели</a>
     </div>
     <div class="printer-modal-specs-block">
       <h4>Характеристики</h4>
@@ -89,6 +88,21 @@
           <tbody data-modal-specs></tbody>
         </table>
       </div>
+    </div>
+    <div class="modal-actions">
+      <a class="modal-page-link" data-modal-page href="/">Страница модели →</a>
+      <% if (typeof contacts !== "undefined" && contacts && contacts.length) { %>
+        <div class="modal-contacts">
+          <% contacts.forEach(function(c) { %>
+            <a class="btn modal-contact-btn"
+               href="<%= c.url %>"
+               style="background: <%= c.color %>; color: <%= c.textColor %>;"
+               <% if (!c.url.startsWith("tel:") && !c.url.startsWith("mailto:")) { %>target="_blank" rel="noopener"<% } %>>
+              <%= c.type %>
+            </a>
+          <% }); %>
+        </div>
+      <% } %>
     </div>
   </div>
   <button type="button" class="printer-modal-nav is-next" data-modal-dir="1" aria-label="Следующий принтер">

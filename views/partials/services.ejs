@@ -45,7 +45,21 @@
     <div class="service-modal-desc-block">
       <h4>Описание</h4>
       <p class="service-modal-desc" data-service-desc></p>
-      <a class="modal-page-link" data-service-page href="/">Страница услуги</a>
+      <div class="modal-actions">
+        <a class="modal-page-link" data-service-page href="/">Страница услуги →</a>
+        <% if (typeof contacts !== "undefined" && contacts && contacts.length) { %>
+          <div class="modal-contacts">
+            <% contacts.forEach(function(c) { %>
+              <a class="btn modal-contact-btn"
+                 href="<%= c.url %>"
+                 style="background: <%= c.color %>; color: <%= c.textColor %>;"
+                 <% if (!c.url.startsWith("tel:") && !c.url.startsWith("mailto:")) { %>target="_blank" rel="noopener"<% } %>>
+                <%= c.type %>
+              </a>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
     </div>
   </div>
 </div>

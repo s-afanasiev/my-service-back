@@ -1,0 +1,15 @@
+<% if (typeof contacts !== "undefined" && contacts && contacts.length > 0) { %>
+  <div class="cta-box">
+    <p class="cta-box-title"><%= typeof ctaTitle !== "undefined" && ctaTitle ? ctaTitle : "Нужна консультация или выезд мастера?" %></p>
+    <div class="contacts cta-box-buttons" aria-label="Связаться с мастером">
+      <% contacts.forEach(function(c) { %>
+        <a class="btn"
+           href="<%= c.url %>"
+           style="background: <%= c.color %>; color: <%= c.textColor %>;"
+           <% if (!c.url.startsWith("tel:") && !c.url.startsWith("mailto:")) { %>target="_blank" rel="noopener"<% } %>>
+          <%= c.type %>
+        </a>
+      <% }); %>
+    </div>
+  </div>
+<% } %>
