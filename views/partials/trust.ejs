@@ -1,0 +1,39 @@
+<%# Блок доверия: как устроена работа (задача 6.3). Якорь #kak-rabotaem %>
+<section class="section trust" id="kak-rabotaem" aria-label="Как мы работаем">
+  <div class="section-head">
+    <h2>Как мы работаем</h2>
+    <p>Прозрачный процесс: вы заранее знаете ориентир по цене, а стоимость ремонта согласуем до начала работ</p>
+  </div>
+
+  <ol class="trust-steps">
+    <li class="trust-step">
+      <span class="trust-step-num">1</span>
+      <h3>Заявка или звонок</h3>
+      <p>Уточняем модель и симптомы, называем ориентир по цене и договариваемся о времени. Можно оставить заявку на сайте — перезвоним сами.</p>
+    </li>
+    <li class="trust-step">
+      <span class="trust-step-num">2</span>
+      <h3>Диагностика</h3>
+      <p>На месте или в мастерской находим причину поломки и согласовываем окончательную стоимость — до того, как начнём работать.</p>
+    </li>
+    <li class="trust-step">
+      <span class="trust-step-num">3</span>
+      <h3>Заправка или ремонт</h3>
+      <p>Заправка картриджа на месте занимает 15–30 минут. Ремонт — по согласованию, запчасти подбираем под модель.</p>
+    </li>
+    <li class="trust-step">
+      <span class="trust-step-num">4</span>
+      <h3>Проверка и гарантия</h3>
+      <p>Печатаем тестовую страницу, проверяем аппарат в работе и отдаём с гарантией на заправку и выполненные работы.</p>
+    </li>
+  </ol>
+
+  <ul class="trust-facts">
+    <li class="trust-fact-item"><strong>Выезд в день обращения</strong><span><%= typeof serviceArea !== "undefined" && serviceArea ? serviceArea : "Выезд по городу и области" %></span></li>
+    <li class="trust-fact-item"><strong>Гарантия на работы</strong><span>на заправку и ремонт, включая заменённые запчасти</span></li>
+    <% if (typeof workLabel !== "undefined" && workLabel) { %>
+      <li class="trust-fact-item"><strong>График работы</strong><span><%= workLabel %></span></li>
+    <% } %>
+    <li class="trust-fact-item"><strong>Ориентир по цене — сразу</strong><span>без скрытых доплат: стоимость согласуем до ремонта</span></li>
+  </ul>
+</section>

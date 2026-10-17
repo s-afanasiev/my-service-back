@@ -1,0 +1,36 @@
+<%# Тизер раздела «картриджи-аналоги» на главной (задача 14.3) %>
+<%
+  var analogService = (typeof services !== "undefined" && services)
+    ? services.find(function (s) { return s.kind === "compatible"; })
+    : null;
+  var analogItems = (analogService && analogService.panel && analogService.panel.items)
+    ? analogService.panel.items.slice(0, 5)
+    : [];
+%>
+<% if (analogService && analogItems.length) { %>
+  <section class="section analogs-teaser" aria-label="Картриджи-аналоги">
+    <div class="analogs-teaser-card">
+      <div class="analogs-teaser-text">
+        <h2>Не оригинал, но дешевле</h2>
+        <p>
+          Совместимые (неоригинальные) картриджи от проверенных брендов: подбираем под вашу модель,
+          заправляем и даём гарантию. У каждого бренда — своя история, ресурс и особенности.
+          <a href="/uslugi/<%= analogService.slug %>#brands">Все бренды-аналоги и описания →</a>
+        </p>
+      </div>
+      <ul class="analogs-teaser-logos">
+        <% analogItems.forEach(function(item) { %>
+          <li>
+            <a href="/uslugi/<%= analogService.slug %>#brands" title="<%= item.label %>">
+              <% if (item.logo) { %>
+                <img src="<%= item.logo %>" alt="<%= item.label %>" loading="lazy" decoding="async" />
+              <% } else { %>
+                <span><%= item.label %></span>
+              <% } %>
+            </a>
+          </li>
+        <% }); %>
+      </ul>
+    </div>
+  </section>
+<% } %>

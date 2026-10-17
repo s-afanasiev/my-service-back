@@ -36,6 +36,9 @@
 <% if (services.length) { %>
 <div class="service-modal" data-service-modal hidden>
   <div class="service-modal-backdrop" data-service-close></div>
+  <button type="button" class="service-modal-nav is-prev" data-service-dir="-1" aria-label="Предыдущая услуга">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 4 7 12l8 8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
   <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="service-modal-title">
     <button type="button" class="service-modal-close" data-service-close aria-label="Закрыть">×</button>
     <div class="service-modal-hero is-photo-only" data-service-hero>
@@ -66,6 +69,9 @@
       </div>
     </div>
   </div>
+  <button type="button" class="service-modal-nav is-next" data-service-dir="1" aria-label="Следующая услуга">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 4 8 8-8 8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
 </div>
 <script>
 (function () {
@@ -77,6 +83,16 @@
   var side = modal.querySelector("[data-service-side]");
   var activePanel = null;
   var selectedBrand = null;
+  var lastFocus = null;
+  var currentCard = null;
+
+  // Листание услуг в модалке, не закрывая её (задача 12.3)
+  function stepModal(dir) {
+    if (cards.length < 2) return;
+    var idx = cards.indexOf(currentCard);
+    if (idx === -1) idx = 0;
+    openModal(cards[(idx + dir + cards.length) % cards.length], true);
+  }
 
   function textOf(el, sel) {
     var node = el.querySelector(sel);
@@ -172,7 +188,9 @@
     renderBrandList();
   }
 
-  function openModal(card) {
+  function openModal(card, keepFocus) {
+    if (!keepFocus) lastFocus = document.activeElement;
+    currentCard = card;
     var photo = modal.querySelector("[data-service-photo]");
     photo.innerHTML = "";
     var srcImg = card.querySelector(".service-art img");
@@ -209,6 +227,9 @@
     modal.hidden = true;
     selectedBrand = null;
     document.body.classList.remove("modal-open");
+    if (lastFocus && lastFocus.focus) {
+      try { lastFocus.focus(); } catch (err) {}
+    }
   }
 
   cards.forEach(function (card) {
@@ -236,15 +257,38 @@
     el.addEventListener("click", closeModal);
   });
 
+  // стрелки листания услуг (задача 12.3)
+  modal.querySelectorAll("[data-service-dir]").forEach(function (btn) {
+    if (cards.length < 2) btn.hidden = true;
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      stepModal(Number(btn.getAttribute("data-service-dir")) || 0);
+    });
+  });
+
   document.addEventListener("keydown", function (e) {
     if (!modal || modal.hidden) return;
-    if (e.key !== "Escape") return;
-    e.preventDefault();
-    if (selectedBrand) {
-      renderBrandList();
+    if (e.key === "Tab" && window.ModalFocus) {
+      ModalFocus.trap(modal.querySelector(".service-modal-dialog"), e);
       return;
     }
-    closeModal();
+    if (e.key === "Escape") {
+      e.preventDefault();
+      if (selectedBrand) {
+        renderBrandList();
+        return;
+      }
+      closeModal();
+      return;
+    }
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      var t = e.target;
+      if (t && t.closest && t.closest("input, textarea, select")) return;
+      if (selectedBrand) return; // внутри панели бренда стрелки не листают услуги
+      e.preventDefault();
+      stepModal(e.key === "ArrowRight" ? 1 : -1);
+    }
   });
 })();
 </script>

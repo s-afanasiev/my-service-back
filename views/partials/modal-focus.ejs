@@ -1,0 +1,37 @@
+<%# Общий хелпер модального фокуса (задача 9.1): зацикливание Tab внутри диалога.
+    Используется модалками принтера, услуги и заявки через window.ModalFocus.trap(container, event). %>
+<script>
+(function () {
+  if (window.ModalFocus) return;
+
+  var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+  function isVisible(el) {
+    return el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement;
+  }
+
+  // Возвращает true, если Tab был перехвачен (фокус замкнут внутри container)
+  function trap(container, e) {
+    if (!container || !e || e.key !== "Tab") return false;
+    var nodes = [].slice.call(container.querySelectorAll(FOCUSABLE)).filter(isVisible);
+    if (!nodes.length) return false;
+    var first = nodes[0];
+    var last = nodes[nodes.length - 1];
+    var active = document.activeElement;
+    if (e.shiftKey) {
+      if (active === first || !container.contains(active)) {
+        e.preventDefault();
+        last.focus();
+        return true;
+      }
+    } else if (active === last || !container.contains(active)) {
+      e.preventDefault();
+      first.focus();
+      return true;
+    }
+    return false;
+  }
+
+  window.ModalFocus = { trap: trap };
+})();
+</script>

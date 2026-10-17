@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body>
+  <%- include('partials/page-top') %>
+
+  <nav class="crumbs" aria-label="Навигация">
+    <a href="/">Главная</a> / <a href="/kartridzhi">Каталог картриджей</a> / <%= cartridge.brand %> <%= cartridge.model %>
+  </nav>
+
+  <article class="detail">
+    <div class="detail-card">
+      <h1><%= heading %></h1>
+      <p class="detail-meta"><%= cartridge.brand %> · <%= cartridge.typeLabel %><%= cartridge.color === "black" ? " · ч/б" : "" %></p>
+      <div class="printer-badges">
+        <span class="detail-price">Тип: <%= cartridge.typeLabel %></span>
+        <% if (typeof refillService !== "undefined" && refillService) { %>
+          <a class="detail-price detail-price-link" href="/uslugi/<%= refillService.slug %>">
+            Заправка — от <%= refillService.priceFormatted %>
+          </a>
+        <% } %>
+        <% if (typeof analogService !== "undefined" && analogService) { %>
+          <a class="detail-price detail-analog-link" href="/uslugi/<%= analogService.slug %>#brands">
+            Аналог дешевле — неоригинальные картриджи →
+          </a>
+        <% } %>
+      </div>
+
+      <% if (typeof analogService !== "undefined" && analogService) { %>
+        <section class="analog-note-box" aria-label="Оригинал или аналог">
+          <h2 class="block-title">Оригинал или аналог?</h2>
+          <p class="detail-desc">
+            Оригинальный картридж <%= cartridge.brand %> <%= cartridge.model %> можно заменить совместимым (неоригинальным) —
+            он стоит дешевле и часто не уступает по ресурсу. Подбираем аналог под вашу модель и даём гарантию на заправку.
+            Бренды-аналоги с описанием каждого — в разделе
+            <a href="/uslugi/<%= analogService.slug %>#brands">«<%= analogService.name %>»</a>.
+          </p>
+        </section>
+      <% } %>
+
+      <% if (printers && printers.length) { %>
+        <section class="content-block" aria-label="Совместимые принтеры">
+          <h2 class="block-title">Подходит к моделям (<%= printers.length %>)</h2>
+          <p class="detail-desc">Нажмите на модель — откроется карточка с характеристиками и ценами, стрелками можно листать остальные.</p>
+          <ul class="cat-grid">
+            <% printers.forEach(function(p) { %>
+              <li data-model-item
+                  data-brand="<%= p.brandSlug %>"
+                  data-slug="<%= p.slug %>"
+                  data-page="/modeli/<%= p.slug %>"
+                  data-brand-name="<%= p.brand %>"
+                  data-model-name="<%= p.model %>">
+                <a class="cat-card" href="/modeli/<%= p.slug %>">
+                  <span class="cat-art" style="--accent: var(--brand-<%= p.brandSlug %>, var(--primary))">
+                    <% if (p.imageUrl) { %>
+                      <img src="<%= p.imageUrl %>" alt="<%= p.brand %> <%= p.model %>" width="240" height="150" loading="lazy" decoding="async" />
+                    <% } else { %>
+                      <svg class="printer-svg" viewBox="0 0 200 128" fill="none" aria-hidden="true">
+                        <rect class="printer-lid" x="38" y="10" width="124" height="18" rx="4" />
+                        <rect class="printer-body" x="28" y="32" width="144" height="72" rx="10" />
+                        <rect class="printer-window" x="46" y="44" width="108" height="36" rx="4" />
+                        <rect class="printer-paper" x="58" y="50" width="84" height="24" rx="2" />
+                        <rect class="printer-tray" x="40" y="96" width="120" height="10" rx="3" />
+                        <circle class="printer-dot" cx="48" cy="88" r="3.5" />
+                        <g class="printer-cmyk">
+                          <circle cx="148" cy="88" r="3.5" /><circle cx="158" cy="88" r="3.5" /><circle cx="168" cy="88" r="3.5" />
+                        </g>
+                      </svg>
+                    <% } %>
+                  </span>
+                  <span class="cat-model"><%= p.model %></span>
+                  <span class="cat-meta"><%= p.meta %></span>
+                </a>
+              </li>
+            <% }); %>
+          </ul>
+        </section>
+      <% } %>
+
+      <%- include('partials/cta-box', { ctaTitle: 'Заправить картридж ' + cartridge.brand + ' ' + cartridge.model + ' или подобрать аналог:' }) %>
+    </div>
+  </article>
+
+  <%# Модалка принтера с листанием по совместимым моделям (задачи 12.2, 13.3) %>
+  <%- include('partials/printer-modal') %>
+  <%- include('partials/printer-modal-js') %>
+  <%- include('partials/printer-catalog-js') %>
+
+  <%- include('partials/footer') %>
+</body>
+</html>

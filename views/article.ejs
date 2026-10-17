@@ -31,6 +31,17 @@
       </p>
 
       <%- include('partials/cta-box', { ctaTitle: 'Нужна заправка или ремонт? Напишите мастеру:' }) %>
+
+      <% if (typeof prevArticle !== "undefined" && prevArticle || typeof nextArticle !== "undefined" && nextArticle) { %>
+        <nav class="pager" aria-label="Другие статьи">
+          <% if (typeof prevArticle !== "undefined" && prevArticle) { %>
+            <a class="pager-link" href="/stati/<%= prevArticle.slug %>">← <%= prevArticle.title %></a>
+          <% } %>
+          <% if (typeof nextArticle !== "undefined" && nextArticle) { %>
+            <a class="pager-link pager-next" href="/stati/<%= nextArticle.slug %>"><%= nextArticle.title %> →</a>
+          <% } %>
+        </nav>
+      <% } %>
     </div>
   </article>
 

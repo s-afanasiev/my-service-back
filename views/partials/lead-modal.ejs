@@ -1,0 +1,149 @@
+<%# Лид-форма: кнопки с атрибутом data-lead-open открывают модалку в любом месте сайта %>
+<div class="lead-modal" data-lead-modal hidden>
+  <div class="lead-modal-backdrop" data-lead-close></div>
+  <div class="lead-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title">
+    <button type="button" class="lead-modal-close" data-lead-close aria-label="Закрыть">×</button>
+    <h3 id="lead-modal-title">Оставить заявку</h3>
+    <p class="lead-modal-sub">
+      Перезвоним в ближайшее рабочее время<% if (typeof workLabel !== "undefined" && workLabel) { %> (<%= workLabel %>)<% } %>,
+      подскажем по цене и согласуем выезд.
+    </p>
+
+    <form class="lead-form" data-lead-form novalidate>
+      <%# honeypot: скрытое поле для ботов %>
+      <input type="text" name="website" class="lead-hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      <input type="hidden" name="context" data-lead-context-input />
+      <input type="hidden" name="page" value="<%= typeof pageUrl !== 'undefined' && pageUrl ? pageUrl : '' %>" />
+
+      <label class="lead-field">
+        <span>Имя</span>
+        <input type="text" name="name" required maxlength="120" autocomplete="name" placeholder="Как к вам обращаться" />
+      </label>
+      <label class="lead-field">
+        <span>Телефон</span>
+        <input type="tel" name="phone" required maxlength="40" autocomplete="tel" placeholder="+7 (___) ___-__-__" />
+      </label>
+      <label class="lead-field">
+        <span>Модель принтера или вопрос <em>(необязательно)</em></span>
+        <textarea name="message" rows="3" maxlength="2000" placeholder="Например: HP LaserJet P1102, нужна заправка"></textarea>
+      </label>
+
+      <p class="lead-error" data-lead-error hidden></p>
+
+      <button type="submit" class="btn lead-submit">Отправить заявку</button>
+      <p class="lead-note">Нажимая кнопку, вы соглашаетесь на обработку персональных данных.</p>
+    </form>
+
+    <div class="lead-success" data-lead-success hidden>
+      <p class="lead-success-title">Заявка принята!</p>
+      <p>Перезвоним в ближайшее рабочее время. Если нужно срочно — позвоните нам напрямую.</p>
+      <% if (typeof contacts !== "undefined" && contacts && contacts.length) { %>
+        <div class="contacts lead-success-contacts">
+          <% contacts.forEach(function(c) { %>
+            <a class="btn"
+               href="<%= c.url %>"
+               style="background: <%= c.color %>; color: <%= c.textColor %>;"
+               <% if (!c.url.startsWith("tel:") && !c.url.startsWith("mailto:")) { %>target="_blank" rel="noopener"<% } %>>
+              <%= c.type %>
+            </a>
+          <% }); %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var modal = document.querySelector("[data-lead-modal]");
+  if (!modal) return;
+
+  var form     = modal.querySelector("[data-lead-form]");
+  var success  = modal.querySelector("[data-lead-success]");
+  var errorBox = modal.querySelector("[data-lead-error]");
+  var ctxInput = modal.querySelector("[data-lead-context-input]");
+  var lastFocus = null;
+
+  function open(context) {
+    lastFocus = document.activeElement;
+    if (ctxInput) ctxInput.value = context || "";
+    if (form) form.hidden = false;
+    if (success) success.hidden = true;
+    if (errorBox) { errorBox.hidden = true; errorBox.textContent = ""; }
+    modal.hidden = false;
+    document.body.classList.add("modal-open");
+    var first = modal.querySelector("input[name='name']");
+    if (first) first.focus();
+  }
+
+  function close() {
+    if (!modal || modal.hidden) return;
+    modal.hidden = true;
+    document.body.classList.remove("modal-open");
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+
+  document.addEventListener("click", function (e) {
+    var trigger = e.target.closest && e.target.closest("[data-lead-open]");
+    if (trigger) {
+      e.preventDefault();
+      open(trigger.getAttribute("data-lead-context") || "");
+      return;
+    }
+    if (e.target.closest && e.target.closest("[data-lead-close]")) {
+      e.preventDefault();
+      close();
+    }
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (!modal || modal.hidden) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      close();
+      return;
+    }
+    if (e.key === "Tab" && window.ModalFocus) {
+      ModalFocus.trap(modal.querySelector(".lead-modal-dialog"), e);
+    }
+  });
+
+  if (form) {
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (errorBox) { errorBox.hidden = true; errorBox.textContent = ""; }
+
+      var data = new FormData(form);
+      var body = new URLSearchParams();
+      data.forEach(function (value, key) { body.append(key, value); });
+
+      var submitBtn = form.querySelector("button[type='submit']");
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Отправляем…"; }
+
+      fetch("/api/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body: body.toString(),
+      })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+        .then(function (res) {
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Отправить заявку"; }
+          if (res.ok && res.json && res.json.ok) {
+            form.hidden = true;
+            if (success) success.hidden = false;
+          } else if (errorBox) {
+            errorBox.textContent = (res.json && res.json.error) || "Не удалось отправить заявку. Попробуйте позвонить.";
+            errorBox.hidden = false;
+          }
+        })
+        .catch(function () {
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Отправить заявку"; }
+          if (errorBox) {
+            errorBox.textContent = "Нет связи с сервером. Попробуйте позвонить нам.";
+            errorBox.hidden = false;
+          }
+        });
+    });
+  }
+})();
+</script>

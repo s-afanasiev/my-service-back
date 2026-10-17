@@ -12,6 +12,29 @@
 
   <article class="detail">
     <div class="detail-card">
+      <h1><%= heading %></h1>
+      <p class="detail-meta"><%= printer.brand %> · <%= printer.meta %></p>
+      <div class="printer-badges">
+        <% if (typeof cartridges !== "undefined" && cartridges && cartridges.length) { %>
+          <% cartridges.forEach(function(c) { %>
+            <a class="detail-price detail-price-link" href="/kartridzhi/<%= c.slug %>">
+              Картридж: <%= c.model %><%= c.typeLabel !== "тонер-картридж" ? " — " + c.typeLabel : "" %> →
+            </a>
+          <% }); %>
+        <% } else if (printer.cartridge_note) { %>
+          <span class="detail-price">Картридж: <%= printer.cartridge_note %></span>
+        <% } %>
+        <% if (typeof refillService !== "undefined" && refillService) { %>
+          <a class="detail-price detail-price-link" href="/uslugi/<%= refillService.slug %>">
+            Заправка — от <%= refillService.priceFormatted %>
+          </a>
+        <% } %>
+        <% if (typeof analogService !== "undefined" && analogService) { %>
+          <a class="detail-price detail-analog-link" href="/uslugi/<%= analogService.slug %>#brands">
+            Аналог дешевле — совместимые картриджи →
+          </a>
+        <% } %>
+      </div>
       <div class="detail-photo">
         <% if (printer.imageUrl) { %>
           <img src="<%= printer.imageUrl %>" alt="<%= printer.brand %> <%= printer.model %>" width="600" height="600" />
@@ -25,18 +48,6 @@
           </svg>
         <% } %>
       </div>
-      <p class="detail-meta"><%= printer.brand %> · <%= printer.meta %></p>
-      <div class="printer-badges">
-        <% if (printer.cartridge_note) { %>
-          <span class="detail-price">Картридж: <%= printer.cartridge_note %></span>
-        <% } %>
-        <% if (typeof refillService !== "undefined" && refillService) { %>
-          <a class="detail-price detail-price-link" href="/uslugi/<%= refillService.slug %>">
-            Заправка — от <%= refillService.priceFormatted %>
-          </a>
-        <% } %>
-      </div>
-      <h1><%= heading %></h1>
       <% if (printer.description) { %>
         <p class="detail-desc"><%= printer.description %></p>
       <% } %>
@@ -94,9 +105,64 @@
         </section>
       <% } %>
 
+      <% if (typeof similar !== "undefined" && similar && similar.length) { %>
+        <section class="content-block" aria-label="Похожие модели">
+          <h2 class="block-title">Похожие модели</h2>
+          <p class="detail-desc">Тот же класс техники — по характеристикам и картриджу. Нажмите на модель, чтобы посмотреть карточку, стрелками — листать остальные.</p>
+          <ul class="cat-grid">
+            <% similar.forEach(function(p) { %>
+              <li data-model-item
+                  data-brand="<%= p.brandSlug %>"
+                  data-slug="<%= p.slug %>"
+                  data-page="/modeli/<%= p.slug %>"
+                  data-brand-name="<%= p.brand %>"
+                  data-model-name="<%= p.model %>">
+                <a class="cat-card" href="/modeli/<%= p.slug %>">
+                  <span class="cat-art" style="--accent: var(--brand-<%= p.brandSlug %>, var(--primary))">
+                    <% if (p.imageUrl) { %>
+                      <img src="<%= p.imageUrl %>" alt="<%= p.brand %> <%= p.model %>" width="240" height="150" loading="lazy" decoding="async" />
+                    <% } else { %>
+                      <svg class="printer-svg" viewBox="0 0 200 128" fill="none" aria-hidden="true">
+                        <rect class="printer-lid" x="38" y="10" width="124" height="18" rx="4" />
+                        <rect class="printer-body" x="28" y="32" width="144" height="72" rx="10" />
+                        <rect class="printer-window" x="46" y="44" width="108" height="36" rx="4" />
+                        <rect class="printer-paper" x="58" y="50" width="84" height="24" rx="2" />
+                        <rect class="printer-tray" x="40" y="96" width="120" height="10" rx="3" />
+                        <circle class="printer-dot" cx="48" cy="88" r="3.5" />
+                        <g class="printer-cmyk">
+                          <circle cx="148" cy="88" r="3.5" /><circle cx="158" cy="88" r="3.5" /><circle cx="168" cy="88" r="3.5" />
+                        </g>
+                      </svg>
+                    <% } %>
+                  </span>
+                  <span class="cat-model"><%= p.model %></span>
+                  <span class="cat-meta"><%= p.meta %></span>
+                </a>
+              </li>
+            <% }); %>
+          </ul>
+        </section>
+      <% } %>
+
       <%- include('partials/cta-box', { ctaTitle: 'Заправить или отремонтировать ' + printer.brand + ' ' + printer.model + ':' }) %>
+
+      <% if (typeof prevPrinter !== "undefined" && prevPrinter || typeof nextPrinter !== "undefined" && nextPrinter) { %>
+        <nav class="pager" aria-label="Другие модели каталога">
+          <% if (typeof prevPrinter !== "undefined" && prevPrinter) { %>
+            <a class="pager-link" href="/modeli/<%= prevPrinter.slug %>">← <%= prevPrinter.brand %> <%= prevPrinter.model %></a>
+          <% } %>
+          <% if (typeof nextPrinter !== "undefined" && nextPrinter) { %>
+            <a class="pager-link pager-next" href="/modeli/<%= nextPrinter.slug %>"><%= nextPrinter.brand %> <%= nextPrinter.model %> →</a>
+          <% } %>
+        </nav>
+      <% } %>
     </div>
   </article>
+
+  <%# Модалка принтера: листание похожих моделей (задача 12.3) %>
+  <%- include('partials/printer-modal') %>
+  <%- include('partials/printer-modal-js') %>
+  <%- include('partials/printer-catalog-js') %>
 
   <%- include('partials/footer') %>
 </body>

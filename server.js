@@ -402,6 +402,42 @@ async function initDB() {
     url   VARCHAR(2048) NOT NULL,
     color VARCHAR(7)    NOT NULL DEFAULT '#2563eb'
   )`);
+  // Заявки с сайта (лид-форма): /api/lead → таблица leads → панель управления
+  await pool.query(`CREATE TABLE IF NOT EXISTS leads (
+    id         SERIAL PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    name       VARCHAR(120) NOT NULL,
+    phone      VARCHAR(40)  NOT NULL,
+    context    VARCHAR(255),
+    message    TEXT,
+    page       VARCHAR(255)
+  )`);
+  // Картриджи (задача 13.1): сущность картриджа + связь M:N с принтерами
+  await pool.query(`CREATE TABLE IF NOT EXISTS cartridges (
+    id             SERIAL PRIMARY KEY,
+    brand          VARCHAR(100) NOT NULL,
+    model          VARCHAR(100) NOT NULL,
+    name           VARCHAR(255),
+    color          VARCHAR(20)  NOT NULL DEFAULT 'black',
+    cartridge_type VARCHAR(20)  NOT NULL DEFAULT 'toner',
+    UNIQUE (brand, model)
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS printer_cartridges (
+    printer_id   INT NOT NULL REFERENCES printers(id) ON DELETE CASCADE,
+    cartridge_id INT NOT NULL REFERENCES cartridges(id) ON DELETE CASCADE,
+    is_default   BOOLEAN NOT NULL DEFAULT false,
+    UNIQUE (printer_id, cartridge_id)
+  )`);
+  // Отзывы (задача 6.3): реальные отзывы клиентов, заполняются в админке
+  await pool.query(`CREATE TABLE IF NOT EXISTS reviews (
+    id         SERIAL PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    author     VARCHAR(120) NOT NULL,
+    city       VARCHAR(120),
+    rating     SMALLINT NOT NULL DEFAULT 5,
+    text       TEXT NOT NULL,
+    is_active  BOOLEAN NOT NULL DEFAULT true
+  )`);
   // Миграция: featured_printers (карусель на главной) → printers (общий каталог);
   // is_featured=true помечает модели, которые показываются в карусели.
   const legacyFeatured = await pool.query(
@@ -458,15 +494,102 @@ async function initDB() {
   await ensureFeaturedSeed();
   await fillFeaturedDetails();
   await fillServiceDetails();
+  await seedCartridges();
+}
+
+// ── Картриджи: разбор cartridge_note и наполнение (задача 13.1) ─────────────
+function parseCartridgeNote(note) {
+  const STOP = new Set(["барабан", "барабаны", "и", "для", "plus", "with"]);
+  const tokens = String(note || "")
+    .replace(/[()]/g, " ")
+    .split(/[^A-Za-zА-Яа-я0-9\-]+/)
+    .map(t => t.trim())
+    .filter(t => t && !STOP.has(t.toLowerCase()));
+  const seen = new Set();
+  const out = [];
+  tokens.forEach(t => {
+    const model = t.toUpperCase();
+    if (seen.has(model)) return;
+    seen.add(model);
+    out.push({ model, isDrum: /^DR-?\d/i.test(t) });
+  });
+  return out;
+}
+
+function cartridgeTypeLabel(t) {
+  if (t === "drum") return "барабан (drum-юнит)";
+  if (t === "ink") return "чернильный картридж";
+  if (t === "waste") return "бункер отработки";
+  return "тонер-картридж";
+}
+
+function cartridgeSlug(brand, model) {
+  return slugPart(brand + " " + model);
+}
+
+function mapCartridge(row) {
+  return {
+    id:            row.id,
+    brand:         row.brand,
+    model:         row.model,
+    name:          row.name || (row.brand + " " + row.model),
+    color:         row.color,
+    cartridgeType: row.cartridge_type,
+    typeLabel:     cartridgeTypeLabel(row.cartridge_type),
+    slug:          cartridgeSlug(row.brand, row.model),
+    printersCount: row.printers_count != null ? Number(row.printers_count) : undefined,
+  };
+}
+
+async function seedCartridges() {
+  const { rows: printers } = await pool.query(
+    "SELECT id, brand, model, cartridge_note, print_technology, color_mode FROM printers"
+  );
+  for (const p of printers) {
+    const tokens = parseCartridgeNote(p.cartridge_note);
+    for (let i = 0; i < tokens.length; i++) {
+      const t = tokens[i];
+      const type = t.isDrum ? "drum" : (p.print_technology === "inkjet" ? "ink" : "toner");
+      let { rows } = await pool.query(
+        "SELECT id FROM cartridges WHERE brand = $1 AND model = $2",
+        [p.brand, t.model]
+      );
+      let cartId;
+      if (!rows.length) {
+        const ins = await pool.query(
+          `INSERT INTO cartridges (brand, model, name, color, cartridge_type)
+           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+          [p.brand, t.model, p.brand + " " + t.model, "black", type]
+        );
+        cartId = ins.rows[0].id;
+      } else {
+        cartId = rows[0].id;
+      }
+      await pool.query(
+        `INSERT INTO printer_cartridges (printer_id, cartridge_id, is_default)
+         VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+        [p.id, cartId, i === 0]
+      );
+    }
+  }
 }
 
 // ── Вспомогательные функции ───────────────────────────────────────────────────
+// Подбор цвета текста кнопки по контрасту с фоном (задача 11.3, WCAG ≥ 4.5:1 где возможно)
 function textColorFor(hex) {
-  const c = hex.replace("#", "");
-  const lum = (0.299 * parseInt(c.slice(0,2),16)
-             + 0.587 * parseInt(c.slice(2,4),16)
-             + 0.114 * parseInt(c.slice(4,6),16)) / 255;
-  return lum > 0.55 ? "#1e293b" : "#ffffff";
+  const c = String(hex || "").replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(c)) return "#ffffff";
+  const chan = (v) => {
+    v /= 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  const lum = 0.2126 * chan(parseInt(c.slice(0, 2), 16))
+            + 0.7152 * chan(parseInt(c.slice(2, 4), 16))
+            + 0.0722 * chan(parseInt(c.slice(4, 6), 16));
+  const ratioWith = (fgLum) =>
+    (Math.max(lum, fgLum) + 0.05) / (Math.min(lum, fgLum) + 0.05);
+  // белый текст против тёмного #1e293b — берём вариант с большим контрастом
+  return ratioWith(1) >= ratioWith(0.0247) ? "#ffffff" : "#1e293b";
 }
 
 function timingSafeEq(a, b) {
@@ -1188,6 +1311,9 @@ async function loadPublicLists() {
       WHERE is_active = true
       ORDER BY sort_order, id`
   );
+  const { rows: reviewRows } = await pool.query(
+    "SELECT * FROM reviews WHERE is_active = true ORDER BY created_at DESC"
+  );
   const contacts = mapContacts(contactRows);
   const seo = pickSeoFromContacts(contacts);
   const hasHero = fs.existsSync(heroPath);
@@ -1197,6 +1323,7 @@ async function loadPublicLists() {
     contacts,
     featured: models.filter(m => m.is_featured).slice(0, FEATURED_MAX),
     models,
+    reviews: reviewRows,
     seo,
     hasHero,
   };
@@ -1238,6 +1365,8 @@ app.get("/", async (req, res) => {
       }),
       services: data.services,
       featured: data.featured,
+      models: data.models,
+      reviews: data.reviews,
     }));
   } catch (err) {
     console.error(err);
@@ -1252,6 +1381,11 @@ app.get("/sitemap.xml", async (req, res) => {
     data.services.forEach(s => { if (s.slug) urls.push(absUrl("/uslugi/" + s.slug)); });
     urls.push(absUrl("/modeli"));
     data.models.forEach(p => { if (p.slug) urls.push(absUrl("/modeli/" + p.slug)); });
+    urls.push(absUrl("/kartridzhi"));
+    try {
+      const { rows: cartRows } = await pool.query("SELECT brand, model FROM cartridges");
+      cartRows.forEach(c => urls.push(absUrl("/kartridzhi/" + cartridgeSlug(c.brand, c.model))));
+    } catch (e) { /* таблица картриджей может быть ещё пуста */ }
     urls.push(absUrl("/stati"));
     ARTICLES.forEach(a => urls.push(absUrl("/stati/" + a.slug)));
     const body = '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -1323,12 +1457,17 @@ app.get("/stati/:slug", async (req, res) => {
     const view = articleView(article, data);
     const pageUrl = absUrl("/stati/" + article.slug);
     const fullText = view.sections.map(s => s.paragraphs.join(" ")).join(" ");
+    const artIdx = ARTICLES.findIndex(a => a.slug === article.slug);
+    const prevArticle = artIdx > 0 ? ARTICLES[artIdx - 1] : null;
+    const nextArticle = artIdx >= 0 && artIdx < ARTICLES.length - 1 ? ARTICLES[artIdx + 1] : null;
     res.render("article", publicLocals(data, {
       title: article.title,
       description: article.summary,
       heading: article.title,
       pageUrl,
       article: view,
+      prevArticle,
+      nextArticle,
       jsonLd: ldString({
         "@context": "https://schema.org",
         "@graph": [
@@ -1376,6 +1515,9 @@ app.get("/uslugi/:slug", async (req, res) => {
     const pageUrl = absUrl("/uslugi/" + service.slug);
     const title = prettyName(service.name) + " в " + SITE_CITY_IN;
     const description = (service.description || HOME_DESC).replace(/\s+/g, " ").trim().slice(0, 160);
+    const svcIdx = data.services.findIndex(s => s.slug === service.slug);
+    const prevService = svcIdx > 0 ? data.services[svcIdx - 1] : null;
+    const nextService = svcIdx >= 0 && svcIdx < data.services.length - 1 ? data.services[svcIdx + 1] : null;
     const business = localBusinessLd(data.contacts);
     const offer = {
       "@type": "Offer",
@@ -1389,6 +1531,8 @@ app.get("/uslugi/:slug", async (req, res) => {
       heading: title,
       pageUrl,
       service,
+      prevService,
+      nextService,
       jsonLd: ldString({
         "@context": "https://schema.org",
         "@graph": [
@@ -1488,8 +1632,27 @@ app.get("/modeli/:slug", async (req, res) => {
     const priceServices = ["refill", "drum", "fuser", "pickup", "charge"]
       .map(k => data.services.find(s => s.kind === k))
       .filter(Boolean);
+    const analogService = data.services.find(s => s.kind === "compatible");
+    const { rows: cartRows } = await pool.query(
+      `SELECT c.*, pc.is_default FROM printer_cartridges pc
+         JOIN cartridges c ON c.id = pc.cartridge_id
+        WHERE pc.printer_id = $1
+        ORDER BY pc.is_default DESC, c.model`,
+      [printer.id]
+    );
     const symptoms = resolveSymptoms(printer, data);
     const faq = resolveFaq(printer, data);
+    const modelIdx = data.models.findIndex(p => p.slug === printer.slug);
+    const prevPrinter = modelIdx > 0 ? data.models[modelIdx - 1] : null;
+    const nextPrinter = modelIdx >= 0 && modelIdx < data.models.length - 1 ? data.models[modelIdx + 1] : null;
+    // Похожие модели (задача 12.3): тот же класс (тип/технология/цветность)
+    const similar = [];
+    data.models.forEach(p => {
+      if (p.slug === printer.slug || similar.length >= 4) return;
+      if (p.print_technology === printer.print_technology && p.color_mode === printer.color_mode) {
+        similar.push(p);
+      }
+    });
     const pageUrl = absUrl("/modeli/" + printer.slug);
     const title = "Заправка и ремонт " + printer.brand + " " + printer.model + " в " + SITE_CITY_IN;
     const description = (printer.description || ("Заправка картриджа и ремонт " + printer.brand + " " + printer.model + " в " + SITE_CITY + ".")).replace(/\s+/g, " ").trim().slice(0, 160);
@@ -1502,8 +1665,13 @@ app.get("/modeli/:slug", async (req, res) => {
       printer,
       refillService,
       priceServices,
+      analogService,
+      cartridges: cartRows.map(mapCartridge),
       symptoms,
       faq,
+      prevPrinter,
+      nextPrinter,
+      similar,
       jsonLd: ldString({
         "@context": "https://schema.org",
         "@graph": [
@@ -1541,6 +1709,115 @@ app.get("/modeli/:slug", async (req, res) => {
   }
 });
 
+// ── Каталог картриджей (задачи 13.2–13.3) ───────────────────────────────────
+app.get("/kartridzhi", async (req, res) => {
+  try {
+    const data = await loadPublicLists();
+    const { rows } = await pool.query(
+      `SELECT c.*, COUNT(pc.printer_id)::int AS printers_count
+         FROM cartridges c
+         LEFT JOIN printer_cartridges pc ON pc.cartridge_id = c.id
+        GROUP BY c.id
+        ORDER BY c.brand, c.model`
+    );
+    const groups = [];
+    const byBrand = new Map();
+    rows.map(mapCartridge).forEach(c => {
+      let g = byBrand.get(c.brand);
+      if (!g) {
+        g = { brand: c.brand, brandSlug: slugPart(c.brand), items: [] };
+        byBrand.set(c.brand, g);
+        groups.push(g);
+      }
+      g.items.push(c);
+    });
+    const pageUrl = absUrl("/kartridzhi");
+    res.render("cartridges", publicLocals(data, {
+      title: "Каталог картриджей — заправка и ремонт в " + SITE_CITY_IN,
+      description: "Каталог картриджей для принтеров и МФУ: тип, цвет, совместимые модели, заправка и неоригинальные аналоги в " + SITE_CITY + ".",
+      heading: "Каталог картриджей",
+      pageUrl,
+      groups,
+      jsonLd: ldString({
+        "@context": "https://schema.org",
+        "@graph": [
+          localBusinessLd(data.contacts),
+          {
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Главная", item: absUrl("/") },
+              { "@type": "ListItem", position: 2, name: "Каталог картриджей", item: pageUrl },
+            ],
+          },
+        ],
+      }),
+    }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Ошибка базы данных");
+  }
+});
+
+app.get("/kartridzhi/:slug", async (req, res) => {
+  try {
+    const data = await loadPublicLists();
+    const { rows } = await pool.query(
+      `SELECT c.*, COUNT(pc.printer_id)::int AS printers_count
+         FROM cartridges c
+         LEFT JOIN printer_cartridges pc ON pc.cartridge_id = c.id
+        GROUP BY c.id`
+    );
+    const cartridge = rows.map(mapCartridge).find(c => c.slug === req.params.slug);
+    if (!cartridge) {
+      return res.status(404).render("not-found", publicLocals(data, {
+        title: "Страница не найдена",
+        description: HOME_DESC,
+        heading: "Картридж не найден",
+        pageUrl: absUrl(req.path),
+      }));
+    }
+    const { rows: prRows } = await pool.query(
+      `SELECT p.* FROM printers p
+         JOIN printer_cartridges pc ON pc.printer_id = p.id
+        WHERE pc.cartridge_id = $1 AND p.is_active = true
+        ORDER BY p.sort_order, p.id`,
+      [cartridge.id]
+    );
+    const printers = prRows.map(mapFeatured);
+    const refillService = data.services.find(s => s.kind === "refill");
+    const analogService = data.services.find(s => s.kind === "compatible");
+    const pageUrl = absUrl("/kartridzhi/" + cartridge.slug);
+    const title = "Картридж " + cartridge.brand + " " + cartridge.model + " — заправка и совместимые модели в " + SITE_CITY_IN;
+    res.render("cartridge", publicLocals(data, {
+      title,
+      description: ("Картридж " + cartridge.brand + " " + cartridge.model + " (" + cartridge.typeLabel + "): совместимые принтеры и МФУ, заправка, аналоги в " + SITE_CITY + ".").slice(0, 160),
+      heading: cartridge.brand + " " + cartridge.model,
+      pageUrl,
+      cartridge,
+      printers,
+      refillService,
+      analogService,
+      jsonLd: ldString({
+        "@context": "https://schema.org",
+        "@graph": [
+          localBusinessLd(data.contacts),
+          {
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Главная", item: absUrl("/") },
+              { "@type": "ListItem", position: 2, name: "Каталог картриджей", item: absUrl("/kartridzhi") },
+              { "@type": "ListItem", position: 3, name: cartridge.brand + " " + cartridge.model, item: pageUrl },
+            ],
+          },
+        ],
+      }),
+    }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Ошибка базы данных");
+  }
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/api/services", async (req, res) => {
@@ -1548,6 +1825,253 @@ app.get("/api/services", async (req, res) => {
     const { rows } = await pool.query("SELECT * FROM services");
     res.json(rows);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Лид-форма: приём заявок (задача 6.2) ────────────────────────────────────
+const leadHits = new Map(); // ip → [timestamp] — простой лимит 5 заявок в час
+
+function leadRateOk(ip) {
+  const now = Date.now();
+  const win = 60 * 60 * 1000;
+  const arr = (leadHits.get(ip) || []).filter(t => now - t < win);
+  const ok = arr.length < 5;
+  if (ok) arr.push(now);
+  leadHits.set(ip, arr);
+  return ok;
+}
+
+// Уведомление о заявке в Telegram (задача 6.2).
+// Настройка в .env: TELEGRAM_BOT_TOKEN (от @BotFather) и TELEGRAM_CHAT_ID (ваш чат/канал).
+function notifyLead(lead) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return;
+  const text = "Новая заявка с сайта " + SITE_NAME
+    + "\nИмя: " + lead.name
+    + "\nТелефон: " + lead.phone
+    + (lead.context ? "\nКонтекст: " + lead.context : "")
+    + (lead.message ? "\nСообщение: " + lead.message : "")
+    + (lead.page ? "\nСтраница: " + lead.page : "");
+  fetch("https://api.telegram.org/bot" + token + "/sendMessage", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, text: text }),
+  }).catch(err => console.error("[lead] telegram notify:", err.message));
+}
+
+app.post("/api/lead", async (req, res) => {
+  try {
+    const body = req.body || {};
+    // honeypot: скрытое поле — боты его заполняют
+    if (String(body.website || "").trim()) return res.json({ ok: true });
+
+    const name = String(body.name || "").trim().slice(0, 120);
+    const phone = String(body.phone || "").trim();
+    const digits = phone.replace(/\D/g, "");
+    const context = String(body.context || "").trim().slice(0, 255);
+    const message = String(body.message || "").trim().slice(0, 2000);
+    const page = String(body.page || "").trim().slice(0, 255);
+
+    if (name.length < 2) {
+      return res.status(400).json({ ok: false, error: "Укажите имя (минимум 2 символа)." });
+    }
+    if (digits.length < 7 || digits.length > 15) {
+      return res.status(400).json({ ok: false, error: "Укажите корректный номер телефона." });
+    }
+    const ip = req.ip || (req.socket && req.socket.remoteAddress) || "unknown";
+    if (!leadRateOk(ip)) {
+      return res.status(429).json({ ok: false, error: "Слишком много заявок. Пожалуйста, позвоните нам." });
+    }
+
+    await pool.query(
+      "INSERT INTO leads (name, phone, context, message, page) VALUES ($1, $2, $3, $4, $5)",
+      [name, phone, context, message, page]
+    );
+    notifyLead({ name, phone, context, message, page });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Не удалось отправить заявку. Попробуйте позвонить." });
+  }
+});
+
+// ── API каталога принтеров (задача 12.1) ────────────────────────────────────
+// Лёгкий список и карточки для модалки каталога /modeli (листание без перезагрузки).
+// Кэш в памяти: данные меняются редко (правки в админке подхватятся через TTL).
+const PRINTER_API_TTL = 60 * 1000;
+const printerApiCache = { at: 0, list: null, bySlug: null };
+
+async function loadPrinterApi() {
+  if (printerApiCache.list && Date.now() - printerApiCache.at < PRINTER_API_TTL) {
+    return printerApiCache;
+  }
+  const data = await loadPublicLists();
+  const refillService = data.services.find(s => s.kind === "refill");
+  const analogService = data.services.find(s => s.kind === "compatible");
+  const priceServices = ["refill", "drum", "fuser", "pickup", "charge"]
+    .map(k => data.services.find(s => s.kind === k))
+    .filter(Boolean);
+
+  // картриджи принтеров (для пилюль и ссылок в модалке)
+  const cartsByPrinter = new Map();
+  try {
+    const { rows: cartRows } = await pool.query(
+      `SELECT pc.printer_id, c.* FROM printer_cartridges pc
+         JOIN cartridges c ON c.id = pc.cartridge_id
+        ORDER BY pc.is_default DESC, c.model`
+    );
+    cartRows.forEach(r => {
+      if (!cartsByPrinter.has(r.printer_id)) cartsByPrinter.set(r.printer_id, []);
+      cartsByPrinter.get(r.printer_id).push(mapCartridge(r));
+    });
+  } catch (err) {
+    console.error(err);
+  }
+
+  const list = [];
+  const bySlug = new Map();
+  data.models.forEach(p => {
+    const brief = {
+      slug:         p.slug,
+      brand:        p.brand,
+      model:        p.model,
+      meta:         p.meta,
+      typeLabel:    p.typeLabel,
+      techLabel:    p.techLabel,
+      colorLabel:   p.colorLabel,
+      brandSlug:    p.brandSlug,
+      imageUrl:     p.imageUrl,
+      cartridgeNote: p.cartridge_note || "",
+    };
+    list.push(brief);
+    bySlug.set(p.slug, {
+      ...brief,
+      description:  p.description || "",
+      specRows:     p.specRows || [],
+      pageUrl:      "/modeli/" + p.slug,
+      cartridges:   cartsByPrinter.get(p.id) || [],
+      analogUrl:    analogService ? "/uslugi/" + analogService.slug + "#brands" : "",
+      refill:       refillService
+        ? { slug: refillService.slug, priceFormatted: refillService.priceFormatted }
+        : null,
+      priceServices: priceServices.map(s => ({
+        name: s.name, slug: s.slug, priceFormatted: s.priceFormatted,
+      })),
+    });
+  });
+
+  printerApiCache.at = Date.now();
+  printerApiCache.list = list;
+  printerApiCache.bySlug = bySlug;
+  return printerApiCache;
+}
+
+app.get("/api/printers", async (req, res) => {
+  try {
+    const cache = await loadPrinterApi();
+    res.json({ items: cache.list });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/printers/:slug", async (req, res) => {
+  try {
+    const cache = await loadPrinterApi();
+    const item = cache.bySlug.get(req.params.slug);
+    if (!item) return res.status(404).json({ error: "Модель не найдена" });
+    res.json(item);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── API картриджей и быстрого поиска (задачи 12.3, 13) ──────────────────────
+async function loadCartridgesWithCounts() {
+  const { rows } = await pool.query(
+    `SELECT c.*, COUNT(pc.printer_id)::int AS printers_count
+       FROM cartridges c
+       LEFT JOIN printer_cartridges pc ON pc.cartridge_id = c.id
+      GROUP BY c.id
+      ORDER BY c.brand, c.model`
+  );
+  return rows.map(mapCartridge);
+}
+
+// Детали картриджа в форме модалки принтера (для листания в каталоге /kartridzhi)
+app.get("/api/kartridzhi/:slug", async (req, res) => {
+  try {
+    const carts = await loadCartridgesWithCounts();
+    const c = carts.find(x => x.slug === req.params.slug);
+    if (!c) return res.status(404).json({ error: "Картридж не найден" });
+    const data = await loadPublicLists();
+    const refillService = data.services.find(s => s.kind === "refill");
+    const analogService = data.services.find(s => s.kind === "compatible");
+    const n = c.printersCount || 0;
+    res.json({
+      brand: c.brand,
+      model: c.model,
+      description: c.typeLabel + " " + c.brand + ". Подходит к " + n + " "
+        + (n === 1 ? "модели" : "моделям") + " принтеров и МФУ."
+        + (analogService ? " Вместо оригинала можно взять аналог — он дешевле." : ""),
+      specRows: [
+        { label: "Тип", value: c.typeLabel },
+        { label: "Цвет", value: c.color === "black" ? "чёрный" : c.color },
+        { label: "Совместимых моделей", value: String(n) },
+      ],
+      refill: refillService
+        ? { slug: refillService.slug, priceFormatted: refillService.priceFormatted }
+        : null,
+      analogUrl: analogService ? "/uslugi/" + analogService.slug + "#brands" : "",
+      pageUrl: "/kartridzhi/" + c.slug,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Быстрый переход (Ctrl+K): модели, картриджи и услуги по одному запросу
+app.get("/api/search", async (req, res) => {
+  try {
+    const q = String(req.query.q || "").trim().toLowerCase().replace(/ё/g, "е");
+    if (q.length < 2) return res.json({ items: [] });
+    const norm = s => String(s || "").toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9]+/g, "");
+    const nq = norm(q);
+    const items = [];
+
+    const cache = await loadPrinterApi();
+    cache.list.forEach(p => {
+      const hay = norm(p.brand + " " + p.model + " " + p.cartridgeNote + " " + p.meta);
+      if (hay.indexOf(nq) !== -1) {
+        items.push({ type: "Модель", title: p.brand + " " + p.model, sub: p.meta, url: "/modeli/" + p.slug });
+      }
+    });
+    (await loadCartridgesWithCounts()).forEach(c => {
+      const hay = norm(c.brand + " " + c.model + " " + c.typeLabel);
+      if (hay.indexOf(nq) !== -1) {
+        items.push({
+          type: "Картридж",
+          title: c.brand + " " + c.model,
+          sub: c.typeLabel + (c.printersCount ? " · " + c.printersCount + " моделей" : ""),
+          url: "/kartridzhi/" + c.slug,
+        });
+      }
+    });
+    const data = await loadPublicLists();
+    data.services.forEach(s => {
+      const hay = norm(s.name);
+      if (hay.indexOf(nq) !== -1) {
+        items.push({ type: "Услуга", title: s.name, sub: s.priceFormatted, url: "/uslugi/" + s.slug });
+      }
+    });
+    res.json({ items: items.slice(0, 12) });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1585,6 +2109,13 @@ if (!adminPass) {
       const { rows: catalog } = await pool.query(
         "SELECT * FROM printers ORDER BY is_featured DESC, sort_order, id"
       );
+      const { rows: leads } = await pool.query(
+        "SELECT * FROM leads ORDER BY created_at DESC LIMIT 200"
+      );
+      const cartridges = await loadCartridgesWithCounts();
+      const { rows: reviews } = await pool.query(
+        "SELECT * FROM reviews ORDER BY created_at DESC"
+      );
       const hasHero = fs.existsSync(heroPath);
       res.render("admin", {
         services: services.map(mapService),
@@ -1593,6 +2124,9 @@ if (!adminPass) {
         featured: featured.map(mapFeatured),
         catalog: catalog.map(mapFeatured),
         featuredMax: FEATURED_MAX,
+        leads,
+        cartridges,
+        reviews,
         importResult: importResultFromQuery(req.query),
         carouselFull: req.query.carousel_full === "1",
       });
@@ -1602,6 +2136,100 @@ if (!adminPass) {
   }
 
   app.get("/home", auth, renderAdmin);
+
+  // Заявки с сайта: удаление обработанной
+  app.post("/admin/leads/:id/delete", auth, async (req, res) => {
+    try {
+      await pool.query("DELETE FROM leads WHERE id = $1", [req.params.id]);
+    } catch (err) {
+      console.error(err);
+    }
+    res.redirect("/home#leads");
+  });
+
+  // Картриджи: ручная доводка (тип/цвет/название) и добавление вручную
+  app.post("/admin/cartridges/:id/update", auth, async (req, res) => {
+    try {
+      const type = ["toner", "ink", "drum", "waste"].includes(req.body.cartridge_type)
+        ? req.body.cartridge_type : "toner";
+      const color = ["black", "cyan", "magenta", "yellow", "tri-color"].includes(req.body.color)
+        ? req.body.color : "black";
+      await pool.query(
+        "UPDATE cartridges SET cartridge_type = $1, color = $2, name = COALESCE(NULLIF($3, ''), name) WHERE id = $4",
+        [type, color, String(req.body.name || "").trim().slice(0, 255), req.params.id]
+      );
+    } catch (err) {
+      console.error(err);
+    }
+    res.redirect("/home#cartridges");
+  });
+
+  app.post("/admin/cartridges/add", auth, async (req, res) => {
+    try {
+      const brand = String(req.body.brand || "").trim().slice(0, 100);
+      const model = String(req.body.model || "").trim().toUpperCase().slice(0, 100);
+      const type = ["toner", "ink", "drum", "waste"].includes(req.body.cartridge_type)
+        ? req.body.cartridge_type : "toner";
+      const color = ["black", "cyan", "magenta", "yellow", "tri-color"].includes(req.body.color)
+        ? req.body.color : "black";
+      if (brand && model) {
+        await pool.query(
+          `INSERT INTO cartridges (brand, model, name, color, cartridge_type)
+           VALUES ($1, $2, $3, $4, $5) ON CONFLICT (brand, model) DO NOTHING`,
+          [brand, model, brand + " " + model, color, type]
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    res.redirect("/home#cartridges");
+  });
+
+  app.post("/admin/cartridges/:id/delete", auth, async (req, res) => {
+    try {
+      await pool.query("DELETE FROM cartridges WHERE id = $1", [req.params.id]);
+    } catch (err) {
+      console.error(err);
+    }
+    res.redirect("/home#cartridges");
+  });
+
+  // Отзывы: добавление, показ/скрытие, удаление
+  app.post("/admin/reviews/add", auth, async (req, res) => {
+    try {
+      const author = String(req.body.author || "").trim().slice(0, 120);
+      const city = String(req.body.city || "").trim().slice(0, 120);
+      const text = String(req.body.text || "").trim().slice(0, 4000);
+      const rating = Math.min(5, Math.max(1, parseInt(req.body.rating, 10) || 5));
+      if (author && text) {
+        await pool.query(
+          "INSERT INTO reviews (author, city, rating, text) VALUES ($1, $2, $3, $4)",
+          [author, city, rating, text]
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    res.redirect("/home#reviews");
+  });
+
+  app.post("/admin/reviews/:id/toggle", auth, async (req, res) => {
+    try {
+      await pool.query("UPDATE reviews SET is_active = NOT is_active WHERE id = $1", [req.params.id]);
+    } catch (err) {
+      console.error(err);
+    }
+    res.redirect("/home#reviews");
+  });
+
+  app.post("/admin/reviews/:id/delete", auth, async (req, res) => {
+    try {
+      await pool.query("DELETE FROM reviews WHERE id = $1", [req.params.id]);
+    } catch (err) {
+      console.error(err);
+    }
+    res.redirect("/home#reviews");
+  });
 
   // Услуги — редактирование
   app.get("/admin/services/:id/edit", auth, async (req, res) => {

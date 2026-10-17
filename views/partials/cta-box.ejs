@@ -2,6 +2,10 @@
   <div class="cta-box">
     <p class="cta-box-title"><%= typeof ctaTitle !== "undefined" && ctaTitle ? ctaTitle : "Нужна консультация или выезд мастера?" %></p>
     <div class="contacts cta-box-buttons" aria-label="Связаться с мастером">
+      <button type="button"
+              class="btn btn-lead"
+              data-lead-open
+              data-lead-context="<%= typeof ctaTitle !== "undefined" && ctaTitle ? ctaTitle : "" %>">Написать заявку</button>
       <% contacts.forEach(function(c) { %>
         <a class="btn"
            href="<%= c.url %>"

@@ -1,3 +1,8 @@
+<%- include('cta-bar') %>
+<%- include('modal-focus') %>
+<%- include('quick-search') %>
+<%- include('lead-modal') %>
+
 <footer class="site-footer">
   <p class="footer-nap">
     <%= typeof siteName !== "undefined" && siteName ? siteName : heading %>
@@ -13,6 +18,7 @@
   <p class="footer-links">
     <a href="/#uslugi">Услуги и цены</a>
     · <a href="/modeli">Каталог моделей</a>
+    · <a href="/kartridzhi">Картриджи</a>
     · <a href="/stati">Статьи</a>
   </p>
   <p>© <%= new Date().getFullYear() %> <%= typeof heading !== "undefined" ? heading : "" %> — все цены указаны в рублях</p>

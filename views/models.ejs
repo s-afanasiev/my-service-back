@@ -36,9 +36,11 @@
               </button>
             <% }); %>
           </div>
+          <p class="cat-count" data-cat-count hidden></p>
         </div>
         <div class="empty-state" data-cat-empty hidden>
           Ничего не найдено. Попробуйте ввести часть названия модели или позвоните нам — заправим и отремонтируем почти любой аппарат.
+          <p class="cat-reset-wrap"><button type="button" class="cat-chip cat-reset" data-cat-reset>Сбросить фильтр</button></p>
         </div>
       <% } %>
 
@@ -54,7 +56,11 @@
               <% g.items.forEach(function(p) { %>
                 <li data-model-item
                     data-brand="<%= g.brandSlug %>"
-                    data-search="<%= (p.brand + ' ' + p.model + ' ' + (p.cartridge_note || '') + ' ' + p.meta).toLowerCase() %>">
+                    data-slug="<%= p.slug %>"
+                    data-page="/modeli/<%= p.slug %>"
+                    data-brand-name="<%= g.brand %>"
+                    data-model-name="<%= p.model %>"
+                    data-search="<%= (p.brand + ' ' + p.model + ' ' + (p.cartridge_note || '') + ' ' + p.meta + ' ' + (p.device_type === 'mfp' ? 'мфу сканер копир' : 'принтер') + ' ' + (p.print_technology === 'inkjet' ? 'струйный струйная' : 'лазерный лазер лазерная') + ' ' + (p.color_mode === 'color' ? 'цветной цветная' : 'чб чёрно-белый черно-белый монохромный моно')).toLowerCase() %>">
                   <a class="cat-card" href="/modeli/<%= p.slug %>">
                     <span class="cat-art" style="--accent: var(--brand-<%= g.brandSlug %>, var(--primary))">
                       <% if (p.imageUrl) { %>
@@ -88,6 +94,10 @@
     </div>
   </article>
 
+  <%# Модалка принтера с листанием по каталогу (задача 12.2) %>
+  <%- include('partials/printer-modal') %>
+  <%- include('partials/printer-modal-js') %>
+
   <%- include('partials/footer') %>
 
   <script>
@@ -96,12 +106,37 @@
     var chips = [].slice.call(document.querySelectorAll("[data-brand-filter]"));
     var sections = [].slice.call(document.querySelectorAll("[data-brand-section]"));
     var emptyBox = document.querySelector("[data-cat-empty]");
+    var countBox = document.querySelector("[data-cat-count]");
+    var resetBtn = document.querySelector("[data-cat-reset]");
     if (!searchInput || !sections.length) return;
 
     var activeBrand = "all";
+    var totalItems = sections.reduce(function (n, sec) {
+      return n + sec.querySelectorAll("[data-model-item]").length;
+    }, 0);
+
+    // Нормализация (задача 10.1): нижний регистр, ё→е, отдельные токены.
+    // «hp 1102», «p-1102», «85a», «tn 1075», «мфу canon» должны находить свои модели.
+    function norm(s) {
+      return String(s || "").toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9]+/g, "");
+    }
+    function tokens(q) {
+      return String(q || "").toLowerCase().replace(/ё/g, "е").split(/[^a-zа-я0-9]+/).filter(Boolean);
+    }
+
+    // Состояние фильтра в URL (задача 10.2): ?brand=hp&q=85a
+    function syncUrl() {
+      var q = searchInput.value.replace(/^\s+|\s+$/g, "");
+      var params = [];
+      if (activeBrand !== "all") params.push("brand=" + encodeURIComponent(activeBrand));
+      if (q) params.push("q=" + encodeURIComponent(q));
+      var url = window.location.pathname + (params.length ? "?" + params.join("&") : "");
+      window.__CATALOG_STATE_URL = url;
+      if (window.history && history.replaceState) history.replaceState(null, "", url);
+    }
 
     function applyFilter() {
-      var q = searchInput.value.replace(/^\s+|\s+$/g, "").toLowerCase();
+      var toks = tokens(searchInput.value);
       var totalVisible = 0;
 
       sections.forEach(function (sec) {
@@ -110,8 +145,8 @@
         var visibleInSec = 0;
 
         items.forEach(function (li) {
-          var hay = li.getAttribute("data-search") || "";
-          var show = brandMatch && (!q || hay.indexOf(q) !== -1);
+          var hay = norm(li.getAttribute("data-search") || "");
+          var show = brandMatch && toks.every(function (t) { return hay.indexOf(t) !== -1; });
           li.hidden = !show;
           if (show) visibleInSec++;
         });
@@ -121,7 +156,31 @@
       });
 
       if (emptyBox) emptyBox.hidden = totalVisible > 0;
+      if (countBox) {
+        if (toks.length || activeBrand !== "all") {
+          countBox.hidden = false;
+          countBox.textContent = "Найдено " + totalVisible + " из " + totalItems;
+        } else {
+          countBox.hidden = true;
+        }
+      }
+      syncUrl();
     }
+
+    // восстановление состояния из URL при загрузке
+    (function initFromUrl() {
+      var mBrand = /[?&]brand=([^&]*)/.exec(window.location.search);
+      var mQuery = /[?&]q=([^&]*)/.exec(window.location.search);
+      if (mBrand) {
+        var brand = decodeURIComponent(mBrand[1]);
+        var known = chips.some(function (c) { return c.getAttribute("data-brand-filter") === brand; });
+        if (known) {
+          activeBrand = brand;
+          chips.forEach(function (c) { c.classList.toggle("is-active", c.getAttribute("data-brand-filter") === brand); });
+        }
+      }
+      if (mQuery) searchInput.value = decodeURIComponent(mQuery[1]);
+    })();
 
     searchInput.addEventListener("input", applyFilter);
 
@@ -132,7 +191,22 @@
         applyFilter();
       });
     });
+
+    if (resetBtn) {
+      resetBtn.addEventListener("click", function () {
+        searchInput.value = "";
+        activeBrand = "all";
+        chips.forEach(function (c) { c.classList.toggle("is-active", c.getAttribute("data-brand-filter") === "all"); });
+        applyFilter();
+        searchInput.focus();
+      });
+    }
+
+    applyFilter();
   })();
   </script>
+
+  <%# Листание моделей прямо из каталога (задача 12.2) — общий контроллер %>
+  <%- include('partials/printer-catalog-js') %>
 </body>
 </html>

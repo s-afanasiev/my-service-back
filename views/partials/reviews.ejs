@@ -1,0 +1,24 @@
+<%# Отзывы клиентов (задача 6.3). Показывается только при наличии активных отзывов —
+    отзывы добавляются в админке (раздел «Отзывы»), выдуманных цитат на сайте нет. %>
+<% if (typeof reviews !== "undefined" && reviews && reviews.length) { %>
+  <section class="section reviews" id="otzyvy" aria-label="Отзывы клиентов">
+    <div class="section-head">
+      <h2>Отзывы клиентов</h2>
+      <p>Реальные отзывы тех, кто заправлял картриджи и ремонтировал технику у нас</p>
+    </div>
+    <ul class="reviews-grid">
+      <% reviews.forEach(function(r) { %>
+        <li class="review-card">
+          <div class="review-head">
+            <span class="review-author"><%= r.author %></span>
+            <% if (r.city) { %><span class="review-city"><%= r.city %></span><% } %>
+            <% if (r.rating) { %>
+              <span class="review-stars" aria-label="Оценка <%= r.rating %> из 5"><%= "★".repeat(Math.min(5, Math.max(1, r.rating))) %></span>
+            <% } %>
+          </div>
+          <p class="review-text"><%= r.text %></p>
+        </li>
+      <% }); %>
+    </ul>
+  </section>
+<% } %>

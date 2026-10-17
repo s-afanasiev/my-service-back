@@ -1,0 +1,174 @@
+<%# Общий контроллер модалки принтера: window.PrinterModal.
+    Используется и каруселью главной, и каталогом /modeli (задача 12.2).
+    API: init({ onStep, onClose }), open(data), update(data), close(), isOpen(), setNav(show).
+    data = { photoNode|imageUrl, brand, model, description, specRows, price, accent, pageUrl, keepFocus } %>
+<script>
+(function () {
+  if (window.PrinterModal) return;
+
+  var modal = document.querySelector("[data-printer-modal]");
+  var onStep = null;
+  var onClose = null;
+  var lastFocus = null;
+
+  function q(sel) { return modal ? modal.querySelector(sel) : null; }
+  function isOpen() { return !!modal && !modal.hidden; }
+
+  function renderSpecs(rows) {
+    var tbody = q("[data-modal-specs]");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    (rows || []).forEach(function (row) {
+      var tr = document.createElement("tr");
+      var th = document.createElement("th");
+      var td = document.createElement("td");
+      th.textContent = row.label || "";
+      td.textContent = row.value || "";
+      tr.appendChild(th);
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function setPrice(text) {
+    var price = q("[data-modal-price]");
+    if (!price) return;
+    if (text) {
+      price.textContent = text;
+      price.hidden = false;
+    } else {
+      price.textContent = "";
+      price.hidden = true;
+    }
+  }
+
+  function setAnalog(url) {
+    var a = q("[data-modal-analog]");
+    if (!a) return;
+    if (url) {
+      a.setAttribute("href", url);
+      a.hidden = false;
+    } else {
+      a.hidden = true;
+    }
+  }
+
+  function open(data) {
+    if (!modal) return;
+    data = data || {};
+    if (!data.keepFocus) lastFocus = document.activeElement || lastFocus;
+
+    var photo = q("[data-modal-photo]");
+    photo.innerHTML = "";
+    if (data.photoNode) {
+      photo.appendChild(data.photoNode);
+    } else if (data.imageUrl) {
+      var img = document.createElement("img");
+      img.src = data.imageUrl;
+      img.alt = ((data.brand || "") + " " + (data.model || "")).trim();
+      photo.appendChild(img);
+    }
+
+    q("[data-modal-brand]").textContent = data.brand || "";
+    q("[data-modal-title]").textContent = data.model || "";
+    q("[data-modal-desc]").textContent = data.description || "";
+    renderSpecs(data.specRows || []);
+    setPrice(data.price || "");
+    setAnalog(data.analogUrl || "");
+
+    var pageLink = q("[data-modal-page]");
+    if (pageLink) {
+      pageLink.setAttribute("href", data.pageUrl || "/");
+      pageLink.textContent = data.pageLabel || "Страница модели →";
+    }
+    if (data.accent) modal.style.setProperty("--accent", data.accent);
+
+    modal.hidden = false;
+    document.body.classList.add("modal-open");
+    if (!data.keepFocus) {
+      var dialog = q(".printer-modal-dialog");
+      if (dialog) {
+        dialog.setAttribute("tabindex", "-1");
+        dialog.focus();
+      }
+    }
+  }
+
+  // Дозагрузка деталей (описание, характеристики, цена) после открытия
+  function update(data) {
+    if (!isOpen() || !data) return;
+    if (typeof data.description === "string") q("[data-modal-desc]").textContent = data.description;
+    if (data.specRows) renderSpecs(data.specRows);
+    if (typeof data.price === "string") setPrice(data.price);
+    if (typeof data.analogUrl === "string") setAnalog(data.analogUrl);
+    var pageLink = q("[data-modal-page]");
+    if (pageLink && data.pageUrl) pageLink.setAttribute("href", data.pageUrl);
+    if (pageLink && data.pageLabel) pageLink.textContent = data.pageLabel;
+  }
+
+  function close() {
+    if (!isOpen()) return;
+    modal.hidden = true;
+    document.body.classList.remove("modal-open");
+    if (lastFocus && lastFocus.focus) {
+      try { lastFocus.focus(); } catch (err) {}
+    }
+    if (onClose) onClose();
+  }
+
+  function setNav(show) {
+    if (!modal) return;
+    modal.querySelectorAll("[data-modal-dir]").forEach(function (btn) {
+      btn.hidden = !show;
+    });
+  }
+
+  function init(opts) {
+    opts = opts || {};
+    if (opts.onStep) onStep = opts.onStep;
+    if (opts.onClose) onClose = opts.onClose;
+    if (!modal) return;
+
+    modal.querySelectorAll("[data-modal-close]").forEach(function (el) {
+      el.addEventListener("click", function (e) {
+        e.preventDefault();
+        close();
+      });
+    });
+    modal.querySelectorAll("[data-modal-dir]").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (onStep) onStep(Number(btn.getAttribute("data-modal-dir")) || 0);
+      });
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (!isOpen()) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        close();
+        return;
+      }
+      if (e.key === "Tab") {
+        if (window.ModalFocus) ModalFocus.trap(q(".printer-modal-dialog"), e);
+        return;
+      }
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      var t = e.target;
+      if (t && t.closest && t.closest("input, textarea, select, [data-modal-nokeys]")) return;
+      e.preventDefault();
+      if (onStep) onStep(e.key === "ArrowRight" ? 1 : -1);
+    });
+  }
+
+  window.PrinterModal = {
+    init: init,
+    open: open,
+    update: update,
+    close: close,
+    isOpen: isOpen,
+    setNav: setNav,
+  };
+})();
+</script>

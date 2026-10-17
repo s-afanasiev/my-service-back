@@ -1,0 +1,44 @@
+<%# Примеры работ (задача 6.3): реальные фото ремонтов + ссылки на услуги. Якорь #raboty %>
+<%
+  function svcByKind(kind) {
+    return (typeof services !== "undefined" && services)
+      ? services.find(function (s) { return s.kind === kind; })
+      : null;
+  }
+  var caseCards = [
+    { img: "/assets/services/remont_kontrollera.jpg", title: "Ремонт контроллера (форматтера)", kind: "controller",
+      text: "Принтер не включается или не принимает задания — меняем и восстанавливаем плату управления." },
+    { img: "/assets/services/zamena_platy.jpg", title: "Замена платы", kind: "board",
+      text: "Сгоревшая электроника: форматтер, силовая плата, плата панели — замена под конкретную ревизию модели." },
+    { img: "/assets/services/proshivka_chipa.jpg", title: "Прошивка и сброс чипа", kind: "chip",
+      text: "Аппарат «не видит» заправленный картридж — прошиваем чип или сбрасываем счётчик ресурса." },
+    { img: "/assets/services/chistka_bunkera_otrabotki.jpg", title: "Чистка бункера отработки", kind: "waste",
+      text: "Полосы и повторяющиеся дефекты на печати после заправки — чистим бункер и меняем уплотнения." }
+  ].map(function (c) {
+    var s = svcByKind(c.kind);
+    return { img: c.img, title: c.title, text: c.text, slug: s ? s.slug : "", price: s ? s.priceFormatted : "" };
+  });
+%>
+<section class="section cases" id="raboty" aria-label="Примеры работ">
+  <div class="section-head">
+    <h2>Примеры работ</h2>
+    <p>Так выглядит наша работа изнутри — реальные фото с ремонта и заправки</p>
+  </div>
+
+  <ul class="case-grid">
+    <% caseCards.forEach(function(c) { %>
+      <li class="case-card">
+        <img class="case-photo" src="<%= c.img %>" alt="<%= c.title %>" width="600" height="400" loading="lazy" decoding="async" />
+        <div class="case-body">
+          <h3 class="case-title"><%= c.title %></h3>
+          <p class="case-text"><%= c.text %></p>
+          <% if (c.slug) { %>
+            <a class="case-link" href="/uslugi/<%= c.slug %>">
+              <%= c.price ? "Цена: " + c.price + " — подробнее →" : "Подробнее об услуге →" %>
+            </a>
+          <% } %>
+        </div>
+      </li>
+    <% }); %>
+  </ul>
+</section>

@@ -1,0 +1,20 @@
+<%# Нижняя мобильная панель действий (задача 7.2): видна только на экранах ≤ 640px %>
+<%
+  var telContact = (typeof contacts !== "undefined" && contacts)
+    ? contacts.find(function (c) { return String(c.url).indexOf("tel:") === 0; })
+    : null;
+  var chatContact = (typeof contacts !== "undefined" && contacts)
+    ? contacts.find(function (c) { return String(c.url).indexOf("tel:") !== 0 && String(c.url).indexOf("mailto:") !== 0; })
+    : null;
+%>
+<div class="cta-bar" aria-label="Быстрые действия">
+  <% if (telContact) { %>
+    <a class="cta-bar-btn cta-bar-call" href="<%= telContact.url %>">Позвонить</a>
+  <% } %>
+  <% if (chatContact) { %>
+    <a class="cta-bar-btn cta-bar-chat"
+       href="<%= chatContact.url %>"
+       <% if (!chatContact.url.startsWith("tel:") && !chatContact.url.startsWith("mailto:")) { %>target="_blank" rel="noopener"<% } %>>Написать в <%= chatContact.type %></a>
+  <% } %>
+  <button type="button" class="cta-bar-btn cta-bar-lead" data-lead-open data-lead-context="Заявка с мобильной панели">Заявка</button>
+</div>

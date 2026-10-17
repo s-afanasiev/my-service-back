@@ -1,0 +1,127 @@
+<%# Листание моделей прямо из каталога карточек: модалка + стрелки ←/→ по видимым карточкам (задача 12.2).
+    Работает на любой странице, где карточки размечены как в /modeli:
+    li[data-model-item|data-cart-item][data-slug][data-page][data-brand-name][data-model-name] > a.cat-card > .cat-art
+    Необязательные атрибуты li: data-api-base (по умолчанию /api/printers), data-page-label (текст ссылки).
+    Требует partials/printer-modal.ejs + partials/printer-modal-js.ejs на странице. %>
+<script>
+(function () {
+  var items = [].slice.call(document.querySelectorAll("[data-model-item], [data-cart-item]"));
+  if (!items.length || !window.PrinterModal) return;
+
+  var catalogUrl = window.location.pathname + window.location.search;
+  var current = null;
+  var detailCache = {};
+
+  function stateUrl() {
+    return window.__CATALOG_STATE_URL || catalogUrl;
+  }
+
+  function visibleItems() {
+    return items.filter(function (li) { return !li.hidden; });
+  }
+
+  function syncNav() {
+    PrinterModal.setNav(visibleItems().length > 1);
+  }
+
+  function artOf(li) {
+    var img = li.querySelector(".cat-art img");
+    if (img) {
+      var imgClone = img.cloneNode(true);
+      imgClone.removeAttribute("width");
+      imgClone.removeAttribute("height");
+      imgClone.removeAttribute("loading");
+      return imgClone;
+    }
+    var art = li.querySelector(".cat-art");
+    if (!art) return null;
+    var artClone = art.cloneNode(true);
+    artClone.className = "film-art";
+    return artClone;
+  }
+
+  function loadDetail(slug, li) {
+    if (detailCache[slug]) {
+      PrinterModal.update(detailCache[slug]);
+      return;
+    }
+    var apiBase = (li && li.getAttribute("data-api-base")) || "/api/printers";
+    fetch(apiBase + "/" + encodeURIComponent(slug))
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (d) {
+        detailCache[slug] = {
+          description: d.description || "",
+          specRows: d.specRows || [],
+          price: d.refill ? "Заправка — от " + d.refill.priceFormatted : "",
+          analogUrl: d.analogUrl || "",
+          pageUrl: d.pageUrl,
+        };
+        if (current && current.getAttribute("data-slug") === slug) {
+          PrinterModal.update(detailCache[slug]);
+        }
+      })
+      .catch(function () {
+        if (current && current.getAttribute("data-slug") === slug) {
+          PrinterModal.update({ description: "" });
+        }
+      });
+  }
+
+  function openItem(li, keepFocus) {
+    current = li;
+    var art = li.querySelector(".cat-art");
+    PrinterModal.open({
+      photoNode: artOf(li),
+      brand: li.getAttribute("data-brand-name") || "",
+      model: li.getAttribute("data-model-name") || "",
+      description: "Загружаем описание…",
+      specRows: [],
+      accent: art ? getComputedStyle(art).getPropertyValue("--accent") : "",
+      pageUrl: li.getAttribute("data-page") || window.location.pathname,
+      pageLabel: li.getAttribute("data-page-label") || "",
+      keepFocus: !!keepFocus,
+    });
+    if (window.history && history.replaceState) {
+      history.replaceState(null, "", li.getAttribute("data-page") || stateUrl());
+    }
+    loadDetail(li.getAttribute("data-slug"), li);
+  }
+
+  function step(dir) {
+    var list = visibleItems();
+    if (list.length < 2) return;
+    var idx = list.indexOf(current);
+    if (idx === -1) idx = 0;
+    openItem(list[(idx + dir + list.length) % list.length], true);
+  }
+
+  PrinterModal.init({
+    onStep: step,
+    onClose: function () {
+      if (window.history && history.replaceState) {
+        history.replaceState(null, "", stateUrl());
+      }
+    },
+  });
+  syncNav();
+
+  items.forEach(function (li) {
+    var link = li.querySelector(".cat-card");
+    if (!link) return;
+    link.addEventListener("click", function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button) return;
+      e.preventDefault();
+      if (PrinterModal.isOpen()) return;
+      syncNav();
+      openItem(li);
+    });
+  });
+
+  // стрелки модалки должны видеть только отфильтрованные карточки
+  var searchInput = document.querySelector("[data-cat-search]");
+  if (searchInput) searchInput.addEventListener("input", syncNav);
+  [].slice.call(document.querySelectorAll("[data-brand-filter]")).forEach(function (chip) {
+    chip.addEventListener("click", syncNav);
+  });
+})();
+</script>

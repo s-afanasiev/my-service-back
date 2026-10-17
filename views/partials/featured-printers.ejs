@@ -59,6 +59,7 @@
     </button>
 
     <div class="filmstrip-dots" role="group" aria-label="Модели">
+      <button type="button" class="filmstrip-pause" data-pause aria-pressed="false" aria-label="Остановить автопрокрутку">⏸ Пауза</button>
       <% featured.forEach(function(p, i) { %>
         <button type="button" class="filmstrip-dot<%= i === 0 ? ' is-on' : '' %>" data-go="<%= i %>" aria-label="<%= p.brand %> <%= p.model %>"></button>
       <% }); %>
@@ -67,48 +68,8 @@
   </div>
 </section>
 
-<div class="printer-modal" data-printer-modal hidden>
-  <div class="printer-modal-backdrop" data-modal-close></div>
-  <button type="button" class="printer-modal-nav is-prev" data-modal-dir="-1" aria-label="Предыдущий принтер">
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 4 7 12l8 8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  </button>
-  <div class="printer-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="printer-modal-title">
-    <button type="button" class="printer-modal-close" data-modal-close aria-label="Закрыть">×</button>
-    <div class="printer-modal-photo" data-modal-photo></div>
-    <p class="printer-modal-brand" data-modal-brand></p>
-    <h3 id="printer-modal-title" data-modal-title></h3>
-    <div class="printer-modal-desc-block">
-      <h4>Описание</h4>
-      <p class="printer-modal-desc" data-modal-desc></p>
-    </div>
-    <div class="printer-modal-specs-block">
-      <h4>Характеристики</h4>
-      <div class="printer-modal-specs-scroll">
-        <table class="printer-modal-table">
-          <tbody data-modal-specs></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <a class="modal-page-link" data-modal-page href="/">Страница модели →</a>
-      <% if (typeof contacts !== "undefined" && contacts && contacts.length) { %>
-        <div class="modal-contacts">
-          <% contacts.forEach(function(c) { %>
-            <a class="btn modal-contact-btn"
-               href="<%= c.url %>"
-               style="background: <%= c.color %>; color: <%= c.textColor %>;"
-               <% if (!c.url.startsWith("tel:") && !c.url.startsWith("mailto:")) { %>target="_blank" rel="noopener"<% } %>>
-              <%= c.type %>
-            </a>
-          <% }); %>
-        </div>
-      <% } %>
-    </div>
-  </div>
-  <button type="button" class="printer-modal-nav is-next" data-modal-dir="1" aria-label="Следующий принтер">
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 4 8 8-8 8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  </button>
-</div>
+<%- include('printer-modal') %>
+<%- include('printer-modal-js') %>
 <script>
 (function () {
   var root = document.querySelector("[data-filmstrip]");
@@ -118,9 +79,9 @@
   var dots  = [].slice.call(root.querySelectorAll(".filmstrip-dot"));
   var live  = root.querySelector("[data-live]");
   var stage = root.querySelector(".filmstrip-stage");
-  var modal = document.querySelector("[data-printer-modal]");
   var n = cards.length;
   if (!n) return;
+  if (!window.PrinterModal) return;
 
   var active = 0;
   var timer = null;
@@ -142,7 +103,7 @@
     live.textContent = "Модель " + (active + 1) + " из " + n + ": " + title;
   }
 
-  function layout() {
+  function layout(userAction) {
     dots.forEach(function (dot, i) {
       dot.classList.toggle("is-on", i === active);
     });
@@ -162,12 +123,35 @@
     if (!use3d) {
       cards[active].scrollIntoView({ inline: "center", block: "nearest", behavior: reduce ? "auto" : "smooth" });
     }
-    announce();
+    // aria-live озвучиваем только по действию пользователя (задача 8.1)
+    if (userAction !== false) announce();
   }
 
-  function go(i) {
+  function go(i, userAction) {
     active = (i % n + n) % n;
-    layout();
+    layout(userAction);
+  }
+
+  // ── автопрокрутка: пауза и стоп после первого взаимодействия (задача 8.1) ──
+  var pauseBtn = root.querySelector("[data-pause]");
+  var userPaused = false;
+  try {
+    userPaused = window.localStorage && localStorage.getItem("carousel-autoplay") === "off";
+  } catch (err) {}
+  var interacted = false;
+
+  function syncPause() {
+    if (!pauseBtn) return;
+    var paused = userPaused || interacted;
+    pauseBtn.setAttribute("aria-pressed", paused ? "true" : "false");
+    pauseBtn.setAttribute("aria-label", paused ? "Возобновить автопрокрутку" : "Остановить автопрокрутку");
+    pauseBtn.textContent = paused ? "▶ Старт" : "⏸ Пауза";
+  }
+
+  function markInteract() {
+    interacted = true;
+    stopIdle();
+    syncPause();
   }
 
   function stopIdle() {
@@ -177,62 +161,62 @@
   function startIdle() {
     stopIdle();
     if (reduce || n < 2) return;
+    if (userPaused || interacted) return;
     if (document.body.classList.contains("modal-open")) return;
-    timer = setInterval(function () { go(active + 1); }, 4500);
+    timer = setInterval(function () { go(active + 1, false); }, 4500);
   }
+
+  if (pauseBtn) {
+    pauseBtn.addEventListener("click", function () {
+      if (userPaused || interacted) {
+        userPaused = false;
+        interacted = false;
+        try { localStorage.setItem("carousel-autoplay", "on"); } catch (err) {}
+        startIdle();
+      } else {
+        userPaused = true;
+        stopIdle();
+        try { localStorage.setItem("carousel-autoplay", "off"); } catch (err) {}
+      }
+      syncPause();
+    });
+  }
+  syncPause();
 
   function textOf(el, sel) {
     var node = el.querySelector(sel);
     return node ? node.textContent.replace(/^\s+|\s+$/g, "") : "";
   }
 
-  function openModal(card, keepFocus) {
-    if (!modal) return;
-    stopIdle();
-    var photo = modal.querySelector("[data-modal-photo]");
-    photo.innerHTML = "";
-    var srcImg = card.querySelector(".film-art img");
-    var srcArt = card.querySelector(".film-art");
-    if (srcImg) {
-      var img = srcImg.cloneNode(true);
-      img.removeAttribute("width");
-      img.removeAttribute("height");
-      photo.appendChild(img);
-    } else if (srcArt) {
-      photo.appendChild(srcArt.cloneNode(true));
-    }
-    modal.querySelector("[data-modal-brand]").textContent = textOf(card, ".film-brand");
-    modal.querySelector("[data-modal-title]").textContent = textOf(card, ".film-model");
-    modal.querySelector("[data-modal-desc]").textContent = textOf(card, ".film-desc");
-    var pageLink = modal.querySelector("[data-modal-page]");
-    if (pageLink) pageLink.setAttribute("href", card.getAttribute("data-page") || "/");
-    var tbody = modal.querySelector("[data-modal-specs]");
-    tbody.innerHTML = "";
-    var specs = [];
+  function specsOf(card) {
     var specNode = card.querySelector(".film-specs");
-    if (specNode) {
-      try { specs = JSON.parse(specNode.textContent); } catch (err) { specs = []; }
+    if (!specNode) return [];
+    try { return JSON.parse(specNode.textContent) || []; } catch (err) { return []; }
+  }
+
+  function openModal(card, keepFocus) {
+    if (!window.PrinterModal) return;
+    stopIdle();
+    var photoNode = null;
+    var srcImg = card.querySelector(".film-art img");
+    if (srcImg) {
+      photoNode = srcImg.cloneNode(true);
+      photoNode.removeAttribute("width");
+      photoNode.removeAttribute("height");
+    } else {
+      var srcArt = card.querySelector(".film-art");
+      if (srcArt) photoNode = srcArt.cloneNode(true);
     }
-    specs.forEach(function (row) {
-      var tr = document.createElement("tr");
-      var th = document.createElement("th");
-      var td = document.createElement("td");
-      th.textContent = row.label || "";
-      td.textContent = row.value || "";
-      tr.appendChild(th);
-      tr.appendChild(td);
-      tbody.appendChild(tr);
+    PrinterModal.open({
+      photoNode: photoNode,
+      brand: textOf(card, ".film-brand"),
+      model: textOf(card, ".film-model"),
+      description: textOf(card, ".film-desc"),
+      specRows: specsOf(card),
+      accent: getComputedStyle(card).getPropertyValue("--accent"),
+      pageUrl: card.getAttribute("data-page") || "/",
+      keepFocus: !!keepFocus
     });
-    modal.style.setProperty("--accent", getComputedStyle(card).getPropertyValue("--accent"));
-    modal.hidden = false;
-    document.body.classList.add("modal-open");
-    if (!keepFocus) {
-      var dialog = modal.querySelector(".printer-modal-dialog");
-      if (dialog) {
-        dialog.setAttribute("tabindex", "-1");
-        dialog.focus();
-      }
-    }
   }
 
   function stepModal(dir) {
@@ -241,24 +225,23 @@
   }
 
   function closeModal() {
-    if (!modal || modal.hidden) return;
-    modal.hidden = true;
-    document.body.classList.remove("modal-open");
+    if (!window.PrinterModal || !PrinterModal.isOpen()) return;
+    PrinterModal.close();
     startIdle();
   }
 
   if (use3d) root.classList.add("is-3d");
 
   root.querySelectorAll("[data-dir]").forEach(function (btn) {
-    btn.addEventListener("click", function () { go(active + Number(btn.getAttribute("data-dir"))); startIdle(); });
+    btn.addEventListener("click", function () { markInteract(); go(active + Number(btn.getAttribute("data-dir"))); startIdle(); });
   });
   dots.forEach(function (dot) {
-    dot.addEventListener("click", function () { go(Number(dot.getAttribute("data-go"))); startIdle(); });
+    dot.addEventListener("click", function () { markInteract(); go(Number(dot.getAttribute("data-go"))); startIdle(); });
   });
 
   stage.addEventListener("keydown", function (e) {
-    if (e.key === "ArrowRight") { e.preventDefault(); go(active + 1); startIdle(); }
-    if (e.key === "ArrowLeft")  { e.preventDefault(); go(active - 1); startIdle(); }
+    if (e.key === "ArrowRight") { e.preventDefault(); markInteract(); go(active + 1); startIdle(); }
+    if (e.key === "ArrowLeft")  { e.preventDefault(); markInteract(); go(active - 1); startIdle(); }
   });
 
   var startX = 0, dragging = false;
@@ -281,6 +264,7 @@
     dragging = true;
     startX = e.clientX;
     try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+    markInteract();
     stopIdle();
   });
   stage.addEventListener("pointerup", function (e) {
@@ -304,7 +288,7 @@
   var wheelLock = 0;
   var wheelAcc = 0;
   root.addEventListener("wheel", function (e) {
-    if (modal && !modal.hidden) return;
+    if (window.PrinterModal && PrinterModal.isOpen()) return;
     var dx = e.deltaX;
     var dy = e.deltaY;
     var isHorizontal = Math.abs(dx) > Math.abs(dy) || e.shiftKey;
@@ -319,6 +303,7 @@
     var dir = wheelAcc > 0 ? 1 : -1;
     wheelAcc = 0;
     wheelLock = now + 420;
+    markInteract();
     go(active + dir);
     startIdle();
   }, { passive: false });
@@ -345,33 +330,23 @@
     if (use3d) layout();
   });
 
-  if (modal) {
-    modal.querySelectorAll("[data-modal-close]").forEach(function (el) {
-      el.addEventListener("click", closeModal);
-    });
-    modal.querySelectorAll("[data-modal-dir]").forEach(function (btn) {
-      if (n < 2) btn.hidden = true;
-      btn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        stepModal(Number(btn.getAttribute("data-modal-dir")));
-      });
-    });
-  }
-  document.addEventListener("keydown", function (e) {
-    if (!modal || modal.hidden) return;
-    if (e.key === "Escape") { e.preventDefault(); closeModal(); return; }
-    if (e.key === "ArrowLeft" || e.code === "ArrowLeft") { e.preventDefault(); stepModal(-1); }
-    if (e.key === "ArrowRight" || e.code === "ArrowRight") { e.preventDefault(); stepModal(1); }
-  }, true);
+  PrinterModal.init({
+    onStep: function (dir) { stepModal(dir); },
+    onClose: function () { startIdle(); }
+  });
+  if (n < 2) PrinterModal.setNav(false);
 
   layout();
 
+  // Задача 6.1: клик и Enter на карточке открывают модалку (модификаторы — честный переход)
   cards.forEach(function (card) {
     var link = card.querySelector(".film-card-link");
     if (!link) return;
     link.addEventListener("click", function (e) {
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button) return;
       e.preventDefault();
+      if (window.PrinterModal && PrinterModal.isOpen()) return;
+      openModal(card);
     });
   });
 })();

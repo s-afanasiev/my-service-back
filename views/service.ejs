@@ -26,19 +26,97 @@
       <% } %>
 
       <% if (service.panel && service.panel.items && service.panel.items.length) { %>
-        <section class="brand-block">
-          <h2><%= service.panel.title || "Бренды" %></h2>
-          <% service.panel.items.forEach(function(item) { %>
-            <article class="brand-article">
-              <h3><%= item.label %></h3>
-              <% if (item.description) { %>
-                <p class="detail-desc"><%= item.description %></p>
-              <% } %>
-            </article>
-          <% }); %>
-        </section>
+        <% if (service.kind === "compatible") { %>
+          <%# Лента брендов-аналогов: чипсы с логотипами + панель выбранного бренда (задача 14.2) %>
+          <section class="brand-block analog-block" id="brands" aria-label="Бренды картриджей-аналогов">
+            <h2><%= service.panel.title || "Бренды-аналоги" %></h2>
+            <div class="analog-tabs" data-analog-tabs>
+              <div class="analog-chips" role="tablist" aria-label="Бренды картриджей-аналогов">
+                <% service.panel.items.forEach(function(item, i) { %>
+                  <button type="button"
+                          class="service-brand-chip analog-chip<%= item.theme ? " is-" + item.theme : "" %>"
+                          role="tab"
+                          id="analog-tab-<%= item.id %>"
+                          aria-controls="analog-panel-<%= item.id %>"
+                          aria-selected="<%= i === 0 ? "true" : "false" %>"
+                          data-analog-tab="<%= item.id %>">
+                    <% if (item.logo) { %><img src="<%= item.logo %>" alt="" loading="lazy" /><% } %>
+                    <span><%= item.label %></span>
+                  </button>
+                <% }); %>
+              </div>
+              <% service.panel.items.forEach(function(item, i) { %>
+                <div class="service-brand-banner analog-panel<%= item.theme ? " is-" + item.theme : "" %>"
+                     id="analog-panel-<%= item.id %>"
+                     role="tabpanel"
+                     aria-labelledby="analog-tab-<%= item.id %>"
+                     data-analog-panel="<%= item.id %>"
+                     <%= i === 0 ? "" : "hidden" %>>
+                  <div class="service-brand-banner-head">
+                    <% if (item.logo) { %><img class="service-brand-banner-logo" src="<%= item.logo %>" alt="<%= item.label %>" /><% } %>
+                    <h3><%= item.label %></h3>
+                  </div>
+                  <p class="service-brand-banner-text"><%= item.description %></p>
+                </div>
+              <% }); %>
+            </div>
+            <p class="analog-note">Цена аналога ниже оригинала; точную стоимость под вашу модель назовём по телефону или в заявке. На заправку и установку — гарантия.</p>
+          </section>
+          <script>
+          (function () {
+            var root = document.querySelector("[data-analog-tabs]");
+            if (!root) return;
+            var tabs = [].slice.call(root.querySelectorAll("[data-analog-tab]"));
+            var panels = [].slice.call(root.querySelectorAll("[data-analog-panel]"));
+            function select(id) {
+              tabs.forEach(function (t) {
+                t.setAttribute("aria-selected", t.getAttribute("data-analog-tab") === id ? "true" : "false");
+              });
+              panels.forEach(function (p) {
+                p.hidden = p.getAttribute("data-analog-panel") !== id;
+              });
+            }
+            tabs.forEach(function (tab) {
+              tab.addEventListener("click", function () {
+                select(tab.getAttribute("data-analog-tab"));
+              });
+              tab.addEventListener("keydown", function (e) {
+                if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+                e.preventDefault();
+                var i = tabs.indexOf(tab);
+                var next = tabs[(i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length];
+                next.focus();
+                select(next.getAttribute("data-analog-tab"));
+              });
+            });
+          })();
+          </script>
+        <% } else { %>
+          <section class="brand-block">
+            <h2><%= service.panel.title || "Бренды" %></h2>
+            <% service.panel.items.forEach(function(item) { %>
+              <article class="brand-article">
+                <h3><%= item.label %></h3>
+                <% if (item.description) { %>
+                  <p class="detail-desc"><%= item.description %></p>
+                <% } %>
+              </article>
+            <% }); %>
+          </section>
+        <% } %>
       <% } %>
       <%- include('partials/cta-box', { ctaTitle: 'Заказать услугу или уточнить цену под вашу модель:' }) %>
+
+      <% if (typeof prevService !== "undefined" && prevService || typeof nextService !== "undefined" && nextService) { %>
+        <nav class="pager" aria-label="Другие услуги">
+          <% if (typeof prevService !== "undefined" && prevService) { %>
+            <a class="pager-link" href="/uslugi/<%= prevService.slug %>">← <%= prevService.name %></a>
+          <% } %>
+          <% if (typeof nextService !== "undefined" && nextService) { %>
+            <a class="pager-link pager-next" href="/uslugi/<%= nextService.slug %>"><%= nextService.name %> →</a>
+          <% } %>
+        </nav>
+      <% } %>
     </div>
   </article>
 

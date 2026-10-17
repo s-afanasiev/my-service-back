@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body>
+  <%- include('partials/page-top') %>
+
+  <nav class="crumbs" aria-label="Навигация">
+    <a href="/">Главная</a> / Каталог картриджей
+  </nav>
+
+  <article class="detail">
+    <div class="detail-card">
+      <h1><%= heading %></h1>
+      <p class="detail-desc">Картриджи для принтеров и МФУ: тип, цвет и совместимые модели. Нашли номер своего картриджи — откройте карточку: там список принтеров, цены на заправку и варианты аналогов. Не нашли? Позвоните — подберём по модели аппарата.</p>
+
+      <% if (groups.length) { %>
+        <div class="cat-tools" data-cat-tools>
+          <div class="cat-search-wrap">
+            <input type="search"
+                   class="cat-search"
+                   data-cart-search
+                   placeholder="Поиск по номеру картриджа (например: 85A, TN-1075, CE285A)..."
+                   autocomplete="off"
+                   aria-label="Поиск по номеру картриджа" />
+          </div>
+          <div class="cat-chips" role="group" aria-label="Фильтр по бренду">
+            <button type="button" class="cat-chip is-active" data-cart-filter="all">Все (<%= groups.reduce(function(n, g) { return n + g.items.length; }, 0) %>)</button>
+            <% groups.forEach(function(g) { %>
+              <button type="button"
+                      class="cat-chip"
+                      data-cart-filter="<%= g.brandSlug %>"
+                      style="--accent: var(--brand-<%= g.brandSlug %>, var(--primary))">
+                <%= g.brand %> (<%= g.items.length %>)
+              </button>
+            <% }); %>
+          </div>
+          <p class="cat-count" data-cart-count hidden></p>
+        </div>
+        <div class="empty-state" data-cart-empty hidden>
+          Ничего не найдено. Попробуйте ввести часть номера картриджа или позвоните нам — подберём картридж по модели принтера.
+          <p class="cat-reset-wrap"><button type="button" class="cat-chip cat-reset" data-cart-reset>Сбросить фильтр</button></p>
+        </div>
+      <% } %>
+
+      <% if (!groups.length) { %>
+        <div class="empty-state">Картриджи пока не добавлены.</div>
+      <% } else { %>
+        <% groups.forEach(function(g) { %>
+          <section class="cat-brand" aria-label="<%= g.brand %>" data-brand-section="<%= g.brandSlug %>">
+            <h2 class="cat-brand-title">
+              <span class="cat-brand-dot" style="--accent: var(--brand-<%= g.brandSlug %>, var(--primary))"></span><%= g.brand %>
+            </h2>
+            <ul class="cat-grid">
+              <% g.items.forEach(function(c) { %>
+                <li data-cart-item
+                    data-brand="<%= g.brandSlug %>"
+                    data-slug="<%= c.slug %>"
+                    data-page="/kartridzhi/<%= c.slug %>"
+                    data-brand-name="<%= g.brand %>"
+                    data-model-name="<%= c.model %>"
+                    data-api-base="/api/kartridzhi"
+                    data-page-label="Страница картриджа →"
+                    data-search="<%= (c.brand + ' ' + c.model + ' ' + c.typeLabel + ' ' + (c.printersCount ? 'совместимые принтеры' : '')).toLowerCase() %>">
+                  <a class="cat-card" href="/kartridzhi/<%= c.slug %>">
+                    <span class="cat-art cat-art-cart" style="--accent: var(--brand-<%= g.brandSlug %>, var(--primary))">
+                      <span class="cart-chip"><%= c.model %></span>
+                    </span>
+                    <span class="cat-model"><%= c.model %></span>
+                    <span class="cat-meta"><%= c.typeLabel %><%= c.color === "black" ? " · ч/б" : "" %></span>
+                    <% if (c.printersCount) { %>
+                      <span class="cat-cartridge">Подходит к <%= c.printersCount %> <%= c.printersCount === 1 ? "модели" : (c.printersCount < 5 ? "моделям" : "моделям") %></span>
+                    <% } %>
+                  </a>
+                </li>
+              <% }); %>
+            </ul>
+          </section>
+        <% }); %>
+      <% } %>
+    </div>
+  </article>
+
+  <%# Модалка картриджа с листанием по каталогу (задача 12.3) %>
+  <%- include('partials/printer-modal') %>
+  <%- include('partials/printer-modal-js') %>
+  <%- include('partials/printer-catalog-js') %>
+
+  <%- include('partials/footer') %>
+
+  <script>
+  (function () {
+    var searchInput = document.querySelector("[data-cart-search]");
+    var chips = [].slice.call(document.querySelectorAll("[data-cart-filter]"));
+    var sections = [].slice.call(document.querySelectorAll("[data-brand-section]"));
+    var emptyBox = document.querySelector("[data-cart-empty]");
+    var countBox = document.querySelector("[data-cart-count]");
+    var resetBtn = document.querySelector("[data-cart-reset]");
+    if (!searchInput || !sections.length) return;
+
+    var activeBrand = "all";
+    var totalItems = sections.reduce(function (n, sec) {
+      return n + sec.querySelectorAll("[data-cart-item]").length;
+    }, 0);
+
+    function norm(s) {
+      return String(s || "").toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9]+/g, "");
+    }
+    function tokens(q) {
+      return String(q || "").toLowerCase().replace(/ё/g, "е").split(/[^a-zа-я0-9]+/).filter(Boolean);
+    }
+
+    function syncUrl() {
+      var q = searchInput.value.replace(/^\s+|\s+$/g, "");
+      var params = [];
+      if (activeBrand !== "all") params.push("brand=" + encodeURIComponent(activeBrand));
+      if (q) params.push("q=" + encodeURIComponent(q));
+      var url = window.location.pathname + (params.length ? "?" + params.join("&") : "");
+      if (window.history && history.replaceState) history.replaceState(null, "", url);
+    }
+
+    function applyFilter() {
+      var toks = tokens(searchInput.value);
+      var totalVisible = 0;
+
+      sections.forEach(function (sec) {
+        var brandMatch = activeBrand === "all" || sec.getAttribute("data-brand-section") === activeBrand;
+        var items = [].slice.call(sec.querySelectorAll("[data-cart-item]"));
+        var visibleInSec = 0;
+
+        items.forEach(function (li) {
+          var hay = norm(li.getAttribute("data-search") || "");
+          var show = brandMatch && toks.every(function (t) { return hay.indexOf(t) !== -1; });
+          li.hidden = !show;
+          if (show) visibleInSec++;
+        });
+
+        sec.hidden = visibleInSec === 0;
+        totalVisible += visibleInSec;
+      });
+
+      if (emptyBox) emptyBox.hidden = totalVisible > 0;
+      if (countBox) {
+        if (toks.length || activeBrand !== "all") {
+          countBox.hidden = false;
+          countBox.textContent = "Найдено " + totalVisible + " из " + totalItems;
+        } else {
+          countBox.hidden = true;
+        }
+      }
+      syncUrl();
+    }
+
+    (function initFromUrl() {
+      var mBrand = /[?&]brand=([^&]*)/.exec(window.location.search);
+      var mQuery = /[?&]q=([^&]*)/.exec(window.location.search);
+      if (mBrand) {
+        var brand = decodeURIComponent(mBrand[1]);
+        var known = chips.some(function (c) { return c.getAttribute("data-cart-filter") === brand; });
+        if (known) {
+          activeBrand = brand;
+          chips.forEach(function (c) { c.classList.toggle("is-active", c.getAttribute("data-cart-filter") === brand); });
+        }
+      }
+      if (mQuery) searchInput.value = decodeURIComponent(mQuery[1]);
+    })();
+
+    searchInput.addEventListener("input", applyFilter);
+    chips.forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        activeBrand = chip.getAttribute("data-cart-filter") || "all";
+        chips.forEach(function (c) { c.classList.toggle("is-active", c === chip); });
+        applyFilter();
+      });
+    });
+    if (resetBtn) {
+      resetBtn.addEventListener("click", function () {
+        searchInput.value = "";
+        activeBrand = "all";
+        chips.forEach(function (c) { c.classList.toggle("is-active", c.getAttribute("data-cart-filter") === "all"); });
+        applyFilter();
+        searchInput.focus();
+      });
+    }
+
+    applyFilter();
+  })();
+  </script>
+</body>
+</html>

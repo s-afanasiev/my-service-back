@@ -77,6 +77,157 @@
 
 <h1>Панель управления</h1>
 
+<!-- ── Заявки с сайта ── -->
+<div class="card" id="leads">
+  <h2>Заявки с сайта <span class="muted">форма «Написать заявку»</span></h2>
+  <% if (!leads || leads.length === 0) { %>
+    <p class="empty">Заявок пока нет. Они появятся, когда посетитель отправит форму «Написать заявку».</p>
+  <% } else { %>
+    <table>
+      <thead><tr><th>Дата</th><th>Имя</th><th>Телефон</th><th>Контекст</th><th>Сообщение</th><th>Страница</th><th></th></tr></thead>
+      <tbody>
+        <% leads.forEach(function(l) { %>
+          <tr>
+            <td class="file-name"><%= new Date(l.created_at).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) %></td>
+            <td><strong><%= l.name %></strong></td>
+            <td><a href="tel:<%= String(l.phone).replace(/[^\d+]/g, "") %>"><%= l.phone %></a></td>
+            <td class="muted"><%= l.context || "—" %></td>
+            <td><%= l.message || "—" %></td>
+            <td class="file-name"><%= l.page || "—" %></td>
+            <td>
+              <form class="inline" method="POST" action="/admin/leads/<%= l.id %>/delete">
+                <button class="btn-delete" onclick="return confirm('Удалить заявку от <%= l.name %>?')">Удалить</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+
+<!-- ── Картриджи ── -->
+<div class="card" id="cartridges">
+  <h2>Картриджи <span class="muted">каталог /kartridzhi</span></h2>
+  <p class="hint">
+    Картриджи создаются автоматически из поля «Картридж» моделей — здесь можно поправить тип, цвет и название.
+    Удалённый картридж вернётся при перезапуске, если он указан в карточке модели.
+  </p>
+  <% if (!cartridges || cartridges.length === 0) { %>
+    <p class="empty">Картриджей пока нет.</p>
+  <% } else { %>
+    <table>
+      <thead><tr><th>Бренд</th><th>Модель</th><th>Название</th><th>Тип</th><th>Цвет</th><th>Моделей</th><th></th></tr></thead>
+      <tbody>
+        <% cartridges.forEach(function(c) { %>
+          <tr>
+            <td><%= c.brand %></td>
+            <td class="file-name"><%= c.model %></td>
+            <td><input form="cart-<%= c.id %>" name="name" value="<%= c.name %>" style="width:100%;min-width:8rem" /></td>
+            <td>
+              <select form="cart-<%= c.id %>" name="cartridge_type">
+                <option value="toner" <%= c.cartridgeType === "toner" ? "selected" : "" %>>тонер</option>
+                <option value="ink" <%= c.cartridgeType === "ink" ? "selected" : "" %>>чернила</option>
+                <option value="drum" <%= c.cartridgeType === "drum" ? "selected" : "" %>>барабан</option>
+                <option value="waste" <%= c.cartridgeType === "waste" ? "selected" : "" %>>отработка</option>
+              </select>
+            </td>
+            <td>
+              <select form="cart-<%= c.id %>" name="color">
+                <option value="black" <%= c.color === "black" ? "selected" : "" %>>чёрный</option>
+                <option value="cyan" <%= c.color === "cyan" ? "selected" : "" %>>cyan</option>
+                <option value="magenta" <%= c.color === "magenta" ? "selected" : "" %>>magenta</option>
+                <option value="yellow" <%= c.color === "yellow" ? "selected" : "" %>>yellow</option>
+                <option value="tri-color" <%= c.color === "tri-color" ? "selected" : "" %>>tri-color</option>
+              </select>
+            </td>
+            <td><%= c.printersCount || 0 %></td>
+            <td style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+              <button class="btn-toggle" type="submit" form="cart-<%= c.id %>">Сохранить</button>
+              <form class="inline" method="POST" action="/admin/cartridges/<%= c.id %>/delete">
+                <button class="btn-delete" onclick="return confirm('Удалить картридж <%= c.brand %> <%= c.model %>?')">Удалить</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+    <% cartridges.forEach(function(c) { %>
+      <form id="cart-<%= c.id %>" method="POST" action="/admin/cartridges/<%= c.id %>/update" hidden></form>
+    <% }); %>
+  <% } %>
+
+  <form method="POST" action="/admin/cartridges/add" class="add-form" style="margin-top:1rem">
+    <label>Бренд<input name="brand" placeholder="HP" required /></label>
+    <label>Модель<input name="model" placeholder="85A" required /></label>
+    <label>Тип
+      <select name="cartridge_type">
+        <option value="toner">тонер</option>
+        <option value="ink">чернила</option>
+        <option value="drum">барабан</option>
+        <option value="waste">отработка</option>
+      </select>
+    </label>
+    <label>Цвет
+      <select name="color">
+        <option value="black">чёрный</option>
+        <option value="cyan">cyan</option>
+        <option value="magenta">magenta</option>
+        <option value="yellow">yellow</option>
+        <option value="tri-color">tri-color</option>
+      </select>
+    </label>
+    <button class="btn-add" type="submit">Добавить картридж</button>
+  </form>
+</div>
+
+<!-- ── Отзывы ── -->
+<div class="card" id="reviews">
+  <h2>Отзывы <span class="muted">на главной, раздел «Отзывы клиентов»</span></h2>
+  <p class="hint">Добавляйте только реальные отзывы клиентов — они публикуются на главной странице. Пока отзывов нет, блок не показывается.</p>
+  <% if (!reviews || reviews.length === 0) { %>
+    <p class="empty">Отзывов пока нет.</p>
+  <% } else { %>
+    <table>
+      <thead><tr><th>Дата</th><th>Автор</th><th>Город</th><th>Оценка</th><th>Текст</th><th>Статус</th><th></th></tr></thead>
+      <tbody>
+        <% reviews.forEach(function(r) { %>
+          <tr>
+            <td class="file-name"><%= new Date(r.created_at).toLocaleDateString("ru-RU") %></td>
+            <td><strong><%= r.author %></strong></td>
+            <td><%= r.city || "—" %></td>
+            <td><%= r.rating %>/5</td>
+            <td><%= r.text %></td>
+            <td><span class="badge <%= r.is_active ? "badge-feat" : "" %>"><%= r.is_active ? "на сайте" : "скрыт" %></span></td>
+            <td style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+              <form class="inline" method="POST" action="/admin/reviews/<%= r.id %>/toggle">
+                <button class="btn-toggle" type="submit"><%= r.is_active ? "Скрыть" : "Показать" %></button>
+              </form>
+              <form class="inline" method="POST" action="/admin/reviews/<%= r.id %>/delete">
+                <button class="btn-delete" onclick="return confirm('Удалить отзыв <%= r.author %>?')">Удалить</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+
+  <form method="POST" action="/admin/reviews/add" class="add-form" style="margin-top:1rem">
+    <label>Автор<input name="author" placeholder="Иван" required /></label>
+    <label>Город<input name="city" placeholder="Курск" /></label>
+    <label>Оценка
+      <select name="rating">
+        <option value="5">5</option>
+        <option value="4">4</option>
+        <option value="3">3</option>
+      </select>
+    </label>
+    <label style="flex:1 1 260px">Текст отзыва<textarea name="text" rows="2" required style="padding:.4rem .6rem;border:1px solid #cbd5e1;border-radius:6px;font-size:.9rem;width:100%"></textarea></label>
+    <button class="btn-add" type="submit">Добавить отзыв</button>
+  </form>
+</div>
+
 <!-- ── Фото шапки ── -->
 <div class="card">
   <h2>Фото шапки</h2>
