@@ -1,7 +1,7 @@
 <%# Быстрый переход Ctrl+K (задача 12.3): поиск по моделям, картриджам и услугам.
     Данные — GET /api/search. Триггеры: Ctrl/Cmd+K и кнопка [data-qs-open]. %>
 <div class="quick-search" data-quick-search hidden>
-  <div class="quick-search-backdrop" data-qs-close></div>
+  <div class="quick-search-backdrop" data-qs-close aria-hidden="true"></div>
   <div class="quick-search-dialog" role="dialog" aria-modal="true" aria-label="Быстрый поиск по сайту">
     <input type="search"
            class="quick-search-input"
@@ -9,7 +9,7 @@
            placeholder="Поиск: модель, картридж или услуга (например: P1102, 85A, заправка)…"
            aria-label="Поиск по сайту"
            autocomplete="off" />
-    <ul class="quick-search-results" data-qs-results></ul>
+    <ul class="quick-search-results" data-qs-results aria-live="polite" aria-relevant="additions text"></ul>
     <p class="quick-search-hint">↑ ↓ — выбор · Enter — перейти · Esc — закрыть</p>
   </div>
 </div>
@@ -25,6 +25,7 @@
   var items = [];
   var activeIdx = 0;
   var timer = null;
+  var requestId = 0;
 
   function open() {
     lastFocus = document.activeElement;
@@ -87,15 +88,17 @@
   function search() {
     var q = input.value.trim();
     if (q.length < 2) { render([]); return; }
+    var id = ++requestId;
     fetch("/api/search?q=" + encodeURIComponent(q))
       .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
-      .then(function (d) { render(d.items || []); })
-      .catch(function () { render([]); });
+      .then(function (d) { if (id === requestId) render(d.items || []); })
+      .catch(function () { if (id === requestId) render([]); });
   }
 
   document.addEventListener("click", function (e) {
     if (e.target.closest && e.target.closest("[data-qs-open]")) {
       e.preventDefault();
+      if (document.body.classList.contains("modal-open") && modal.hidden) return;
       open();
       return;
     }
@@ -108,7 +111,8 @@
   document.addEventListener("keydown", function (e) {
     if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K" || e.code === "KeyK")) {
       e.preventDefault();
-      if (modal.hidden) open(); else close();
+      if (!modal.hidden) close();
+      else if (!document.body.classList.contains("modal-open")) open();
       return;
     }
     if (modal.hidden) return;

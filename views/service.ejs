@@ -24,6 +24,9 @@
       <% if (service.description) { %>
         <p class="detail-desc"><%= service.description %></p>
       <% } %>
+      <% if (warrantyLabel) { %>
+        <p class="warranty-note"><strong>Гарантия:</strong> <%= warrantyLabel %></p>
+      <% } %>
 
       <% if (service.panel && service.panel.items && service.panel.items.length) { %>
         <% if (service.kind === "compatible") { %>

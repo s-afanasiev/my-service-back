@@ -42,11 +42,12 @@
     }
   }
 
-  function setAnalog(url) {
+  function setAnalog(url, label) {
     var a = q("[data-modal-analog]");
     if (!a) return;
     if (url) {
       a.setAttribute("href", url);
+      a.textContent = label || "Аналог дешевле →";
       a.hidden = false;
     } else {
       a.hidden = true;
@@ -74,7 +75,7 @@
     q("[data-modal-desc]").textContent = data.description || "";
     renderSpecs(data.specRows || []);
     setPrice(data.price || "");
-    setAnalog(data.analogUrl || "");
+    setAnalog(data.analogUrl || "", data.analogLabel || "");
 
     var pageLink = q("[data-modal-page]");
     if (pageLink) {
@@ -86,11 +87,7 @@
     modal.hidden = false;
     document.body.classList.add("modal-open");
     if (!data.keepFocus) {
-      var dialog = q(".printer-modal-dialog");
-      if (dialog) {
-        dialog.setAttribute("tabindex", "-1");
-        dialog.focus();
-      }
+      modal.focus();
     }
   }
 
@@ -100,7 +97,7 @@
     if (typeof data.description === "string") q("[data-modal-desc]").textContent = data.description;
     if (data.specRows) renderSpecs(data.specRows);
     if (typeof data.price === "string") setPrice(data.price);
-    if (typeof data.analogUrl === "string") setAnalog(data.analogUrl);
+    if (typeof data.analogUrl === "string") setAnalog(data.analogUrl, data.analogLabel || "");
     var pageLink = q("[data-modal-page]");
     if (pageLink && data.pageUrl) pageLink.setAttribute("href", data.pageUrl);
     if (pageLink && data.pageLabel) pageLink.textContent = data.pageLabel;
@@ -145,17 +142,19 @@
 
     document.addEventListener("keydown", function (e) {
       if (!isOpen()) return;
+      var t = e.target;
+      var inScroll = t && t.closest && t.closest("[data-modal-scroll]");
+      if (inScroll && (e.key === "Escape" || e.key === "ArrowLeft" || e.key === "ArrowRight")) return;
       if (e.key === "Escape") {
         e.preventDefault();
         close();
         return;
       }
       if (e.key === "Tab") {
-        if (window.ModalFocus) ModalFocus.trap(q(".printer-modal-dialog"), e);
+        if (window.ModalFocus) ModalFocus.trap(modal, e);
         return;
       }
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      var t = e.target;
       if (t && t.closest && t.closest("input, textarea, select, [data-modal-nokeys]")) return;
       e.preventDefault();
       if (onStep) onStep(e.key === "ArrowRight" ? 1 : -1);

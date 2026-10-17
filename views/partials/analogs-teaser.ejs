@@ -1,10 +1,10 @@
-<%# Тизер раздела «картриджи-аналоги» на главной (задача 14.3) %>
+<%# Тизер раздела «картриджи-аналоги» на главной (задача 14.3): все бренды едут «паровозиком» %>
 <%
   var analogService = (typeof services !== "undefined" && services)
     ? services.find(function (s) { return s.kind === "compatible"; })
     : null;
   var analogItems = (analogService && analogService.panel && analogService.panel.items)
-    ? analogService.panel.items.slice(0, 5)
+    ? analogService.panel.items
     : [];
 %>
 <% if (analogService && analogItems.length) { %>
@@ -18,19 +18,28 @@
           <a href="/uslugi/<%= analogService.slug %>#brands">Все бренды-аналоги и описания →</a>
         </p>
       </div>
-      <ul class="analogs-teaser-logos">
-        <% analogItems.forEach(function(item) { %>
-          <li>
-            <a href="/uslugi/<%= analogService.slug %>#brands" title="<%= item.label %>">
-              <% if (item.logo) { %>
-                <img src="<%= item.logo %>" alt="<%= item.label %>" loading="lazy" decoding="async" />
-              <% } else { %>
-                <span><%= item.label %></span>
-              <% } %>
-            </a>
-          </li>
-        <% }); %>
-      </ul>
+      <div class="analogs-teaser-marquee">
+        <div class="analogs-teaser-track">
+          <%# лента из двух копий: пока первая уезжает, её место занимает вторая — шва не видно;
+               копия для склейки скрыта от читалок и табуляции %>
+          <% [false, true].forEach(function (dup) { %>
+            <ul class="analogs-teaser-logos"<%- dup ? ' aria-hidden="true"' : '' %>>
+              <% analogItems.forEach(function (item) { %>
+                <li>
+                  <a href="/uslugi/<%= analogService.slug %>#brands" title="<%= item.label %>"<%- dup ? ' tabindex="-1"' : '' %>>
+                    <% if (item.logo) { %>
+                      <%# без lazy: лента в движении — отложенная загрузка так и не сработает на «уезжающих» плитках %>
+                      <img src="<%= item.logo %>" alt="<%= item.label %>" decoding="async" />
+                    <% } else { %>
+                      <span><%= item.label %></span>
+                    <% } %>
+                  </a>
+                </li>
+              <% }); %>
+            </ul>
+          <% }); %>
+        </div>
+      </div>
     </div>
   </section>
 <% } %>

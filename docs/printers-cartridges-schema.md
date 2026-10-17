@@ -480,4 +480,40 @@ CREATE UNIQUE INDEX service_prices_service_cartridge
 
 ---
 
-*Черновик для обсуждения. Правки вносим в этот файл, пока не перейдём к созданию таблиц в БД.*
+*Исходный документ начинался как черновик. Реализованная схема приложения зафиксирована ниже; разделы выше остаются проектными заметками.*
+
+---
+
+## 13. Реализованная v1-схема приложения
+
+Текущая схема создаётся/дополняется из `server.js:initDB()`:
+
+```sql
+CREATE TABLE cartridges (
+  id SERIAL PRIMARY KEY,
+  brand VARCHAR(100) NOT NULL,
+  model VARCHAR(100) NOT NULL,
+  name VARCHAR(255),
+  color VARCHAR(20) NOT NULL DEFAULT 'black',
+  cartridge_type VARCHAR(20) NOT NULL DEFAULT 'toner',
+  aliases TEXT[] NOT NULL DEFAULT '{}',
+  resource_pages INTEGER,
+  analog_note TEXT,
+  UNIQUE (brand, model)
+);
+
+CREATE TABLE printer_cartridges (
+  printer_id INT NOT NULL REFERENCES printers(id) ON DELETE CASCADE,
+  cartridge_id INT NOT NULL REFERENCES cartridges(id) ON DELETE CASCADE,
+  is_default BOOLEAN NOT NULL DEFAULT false,
+  UNIQUE (printer_id, cartridge_id)
+);
+```
+
+`printers` создаётся **до** `printer_cartridges`, чтобы чистая установка не упиралась в отсутствующий FK.
+В дополнение к цветам отдельного картриджа приложение использует `color='set'` для цветного комплекта.
+Коды-синонимы хранятся в `aliases`, чтобы `85A` и `CE285A` вели к одной карточке.
+
+`seedCartridges()` принимает только коды с цифрами (числовой код — минимум 3 цифры), применяет явные пары синонимов и пропускает описательный текст. Узкий allowlist миграции удаляет только мусорные строки, созданные прежним tokenizer (`ЧЕРНИЛА`, `ЗАПРАВКА`, `4` и т. п.). Текст `printers.cartridge_note` остаётся исходным fallback.
+
+Названия серий без конкретного кода (например, «чернила GI-серии») и принтеры без номера картриджа не преобразуются автоматически: их нужно уточнить и связать вручную в `/home` → «Картриджи». Не угадывать модель по одному описанию.

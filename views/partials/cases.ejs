@@ -1,4 +1,4 @@
-<%# Примеры работ (задача 6.3): реальные фото ремонтов + ссылки на услуги. Якорь #raboty %>
+<%# Детали и услуги ремонта (задача 6.3): иллюстрации комплектующих + ссылки на услуги. Якорь #raboty %>
 <%
   function svcByKind(kind) {
     return (typeof services !== "undefined" && services)
@@ -19,10 +19,10 @@
     return { img: c.img, title: c.title, text: c.text, slug: s ? s.slug : "", price: s ? s.priceFormatted : "" };
   });
 %>
-<section class="section cases" id="raboty" aria-label="Примеры работ">
+<section class="section cases" id="raboty" aria-label="Узлы и услуги ремонта">
   <div class="section-head">
-    <h2>Примеры работ</h2>
-    <p>Так выглядит наша работа изнутри — реальные фото с ремонта и заправки</p>
+    <h2>Узлы и услуги ремонта</h2>
+    <p>Иллюстрации комплектующих и примеры задач, с которыми помогаем. Это не фотографии конкретных ремонтов.</p>
   </div>
 
   <ul class="case-grid">

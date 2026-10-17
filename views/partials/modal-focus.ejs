@@ -18,6 +18,14 @@
     var first = nodes[0];
     var last = nodes[nodes.length - 1];
     var active = document.activeElement;
+    var activeIndex = nodes.indexOf(active);
+    // Dialog containers are often focused programmatically on open (tabindex=-1).
+    // Start at the correct edge instead of allowing Shift+Tab to escape the modal.
+    if (activeIndex === -1 && container.contains(active)) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+      return true;
+    }
     if (e.shiftKey) {
       if (active === first || !container.contains(active)) {
         e.preventDefault();

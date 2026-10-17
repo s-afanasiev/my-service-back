@@ -34,12 +34,12 @@
 </section>
 
 <% if (services.length) { %>
-<div class="service-modal" data-service-modal hidden>
-  <div class="service-modal-backdrop" data-service-close></div>
+<div class="service-modal" data-service-modal role="dialog" aria-modal="true" aria-labelledby="service-modal-title" tabindex="-1" hidden>
+  <div class="service-modal-backdrop" data-service-close aria-hidden="true"></div>
   <button type="button" class="service-modal-nav is-prev" data-service-dir="-1" aria-label="Предыдущая услуга">
     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 4 7 12l8 8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
-  <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="service-modal-title">
+  <div class="service-modal-dialog">
     <button type="button" class="service-modal-close" data-service-close aria-label="Закрыть">×</button>
     <div class="service-modal-hero is-photo-only" data-service-hero>
       <div class="service-modal-photo" data-service-photo></div>
@@ -215,11 +215,7 @@
     renderSide(panelOf(card));
     modal.hidden = false;
     document.body.classList.add("modal-open");
-    var dialog = modal.querySelector(".service-modal-dialog");
-    if (dialog) {
-      dialog.setAttribute("tabindex", "-1");
-      dialog.focus();
-    }
+    modal.focus();
   }
 
   function closeModal() {
@@ -270,7 +266,7 @@
   document.addEventListener("keydown", function (e) {
     if (!modal || modal.hidden) return;
     if (e.key === "Tab" && window.ModalFocus) {
-      ModalFocus.trap(modal.querySelector(".service-modal-dialog"), e);
+      ModalFocus.trap(modal, e);
       return;
     }
     if (e.key === "Escape") {

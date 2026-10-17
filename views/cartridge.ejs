@@ -13,9 +13,11 @@
   <article class="detail">
     <div class="detail-card">
       <h1><%= heading %></h1>
-      <p class="detail-meta"><%= cartridge.brand %> · <%= cartridge.typeLabel %><%= cartridge.color === "black" ? " · ч/б" : "" %></p>
+      <p class="detail-meta"><%= cartridge.brand %> · <%= cartridge.typeLabel %> · <%= cartridge.colorLabel %></p>
       <div class="printer-badges">
         <span class="detail-price">Тип: <%= cartridge.typeLabel %></span>
+        <% if (cartridge.aliases.length) { %><span class="detail-price">Также обозначается: <%= cartridge.aliases.join(", ") %></span><% } %>
+        <% if (cartridge.resourcePages) { %><span class="detail-price">Ресурс: <%= cartridge.resourcePages %> стр.</span><% } %>
         <% if (typeof refillService !== "undefined" && refillService) { %>
           <a class="detail-price detail-price-link" href="/uslugi/<%= refillService.slug %>">
             Заправка — от <%= refillService.priceFormatted %>
@@ -23,7 +25,7 @@
         <% } %>
         <% if (typeof analogService !== "undefined" && analogService) { %>
           <a class="detail-price detail-analog-link" href="/uslugi/<%= analogService.slug %>#brands">
-            Аналог дешевле — неоригинальные картриджи →
+            Аналоги — от <%= analogService.priceFormatted %> →
           </a>
         <% } %>
       </div>
@@ -33,9 +35,11 @@
           <h2 class="block-title">Оригинал или аналог?</h2>
           <p class="detail-desc">
             Оригинальный картридж <%= cartridge.brand %> <%= cartridge.model %> можно заменить совместимым (неоригинальным) —
-            он стоит дешевле и часто не уступает по ресурсу. Подбираем аналог под вашу модель и даём гарантию на заправку.
+            совместимый вариант обычно дешевле, но ресурс и совместимость зависят от конкретного производителя и модели.
+            Подбираем аналог под вашу модель и даём гарантию на заправку.
             Бренды-аналоги с описанием каждого — в разделе
             <a href="/uslugi/<%= analogService.slug %>#brands">«<%= analogService.name %>»</a>.
+            <% if (cartridge.analogNote) { %><br /><%= cartridge.analogNote %><% } %>
           </p>
         </section>
       <% } %>

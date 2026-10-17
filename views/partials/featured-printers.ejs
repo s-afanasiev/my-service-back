@@ -17,6 +17,8 @@
               data-brand="<%= p.brandSlug %>"
               data-index="<%= i %>"
               data-page="/modeli/<%= p.slug %>"
+              data-analog-url="<%= p.analogUrl || '' %>"
+              data-analog-label="<%= p.analogLabel || '' %>"
               style="--accent: var(--brand-<%= p.brandSlug %>, var(--primary))">
             <a class="film-card-link" href="/modeli/<%= p.slug %>">
             <div class="film-art" aria-hidden="true">
@@ -215,6 +217,8 @@
       specRows: specsOf(card),
       accent: getComputedStyle(card).getPropertyValue("--accent"),
       pageUrl: card.getAttribute("data-page") || "/",
+      analogUrl: card.getAttribute("data-analog-url") || "",
+      analogLabel: card.getAttribute("data-analog-label") || "",
       keepFocus: !!keepFocus
     });
   }
@@ -331,7 +335,7 @@
   });
 
   PrinterModal.init({
-    onStep: function (dir) { stepModal(dir); },
+    onStep: function (dir) { markInteract(); stepModal(dir); },
     onClose: function () { startIdle(); }
   });
   if (n < 2) PrinterModal.setNav(false);
@@ -346,6 +350,7 @@
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button) return;
       e.preventDefault();
       if (window.PrinterModal && PrinterModal.isOpen()) return;
+      markInteract();
       openModal(card);
     });
   });

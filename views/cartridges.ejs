@@ -13,7 +13,7 @@
   <article class="detail">
     <div class="detail-card">
       <h1><%= heading %></h1>
-      <p class="detail-desc">Картриджи для принтеров и МФУ: тип, цвет и совместимые модели. Нашли номер своего картриджи — откройте карточку: там список принтеров, цены на заправку и варианты аналогов. Не нашли? Позвоните — подберём по модели аппарата.</p>
+      <p class="detail-desc">Картриджи для принтеров и МФУ: тип, цвет и совместимые модели. Нашли номер своего картриджа — откройте карточку: там список принтеров, цены на заправку и варианты аналогов. Не нашли? Позвоните — подберём по модели аппарата.</p>
 
       <% if (groups.length) { %>
         <div class="cat-tools" data-cat-tools>
@@ -62,15 +62,19 @@
                     data-model-name="<%= c.model %>"
                     data-api-base="/api/kartridzhi"
                     data-page-label="Страница картриджа →"
-                    data-search="<%= (c.brand + ' ' + c.model + ' ' + c.typeLabel + ' ' + (c.printersCount ? 'совместимые принтеры' : '')).toLowerCase() %>">
+                    data-search="<%= (c.brand + ' ' + c.model + ' ' + c.aliases.join(' ') + ' ' + c.typeLabel + ' ' + c.colorLabel + ' ' + (c.printersCount ? 'совместимые принтеры' : '')).toLowerCase() %>">
                   <a class="cat-card" href="/kartridzhi/<%= c.slug %>">
                     <span class="cat-art cat-art-cart" style="--accent: var(--brand-<%= g.brandSlug %>, var(--primary))">
                       <span class="cart-chip"><%= c.model %></span>
                     </span>
                     <span class="cat-model"><%= c.model %></span>
-                    <span class="cat-meta"><%= c.typeLabel %><%= c.color === "black" ? " · ч/б" : "" %></span>
+                    <% if (c.aliases.length) { %><span class="cat-aliases">Также обозначается: <%= c.aliases.join(", ") %></span><% } %>
+                    <span class="cat-meta"><%= c.typeLabel %> · <%= c.colorLabel %></span>
                     <% if (c.printersCount) { %>
                       <span class="cat-cartridge">Подходит к <%= c.printersCount %> <%= c.printersCount === 1 ? "модели" : (c.printersCount < 5 ? "моделям" : "моделям") %></span>
+                    <% } %>
+                    <% if (typeof refillService !== "undefined" && refillService) { %>
+                      <span class="cat-cartridge">Заправка — от <%= refillService.priceFormatted %></span>
                     <% } %>
                   </a>
                 </li>
@@ -117,6 +121,7 @@
       if (activeBrand !== "all") params.push("brand=" + encodeURIComponent(activeBrand));
       if (q) params.push("q=" + encodeURIComponent(q));
       var url = window.location.pathname + (params.length ? "?" + params.join("&") : "");
+      window.__CATALOG_STATE_URL = url;
       if (window.history && history.replaceState) history.replaceState(null, "", url);
     }
 

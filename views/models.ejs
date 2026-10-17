@@ -111,6 +111,7 @@
     if (!searchInput || !sections.length) return;
 
     var activeBrand = "all";
+    var searchHistoryActive = false;
     var totalItems = sections.reduce(function (n, sec) {
       return n + sec.querySelectorAll("[data-model-item]").length;
     }, 0);
@@ -125,17 +126,19 @@
     }
 
     // Состояние фильтра в URL (задача 10.2): ?brand=hp&q=85a
-    function syncUrl() {
+    function syncUrl(historyMode) {
       var q = searchInput.value.replace(/^\s+|\s+$/g, "");
       var params = [];
       if (activeBrand !== "all") params.push("brand=" + encodeURIComponent(activeBrand));
       if (q) params.push("q=" + encodeURIComponent(q));
       var url = window.location.pathname + (params.length ? "?" + params.join("&") : "");
       window.__CATALOG_STATE_URL = url;
-      if (window.history && history.replaceState) history.replaceState(null, "", url);
+      if (!window.history || !history.pushState) return;
+      if (historyMode === "push") history.pushState({ catalog: true }, "", url);
+      else if (historyMode !== "none") history.replaceState({ catalog: true }, "", url);
     }
 
-    function applyFilter() {
+    function applyFilter(historyMode) {
       var toks = tokens(searchInput.value);
       var totalVisible = 0;
 
@@ -164,7 +167,28 @@
           countBox.hidden = true;
         }
       }
-      syncUrl();
+      syncUrl(historyMode || "replace");
+    }
+
+    function safeDecode(value) {
+      try { return decodeURIComponent(value); } catch (err) { return value; }
+    }
+
+    function restoreFromUrl() {
+      var mBrand = /[?&]brand=([^&]*)/.exec(window.location.search);
+      var mQuery = /[?&]q=([^&]*)/.exec(window.location.search);
+      activeBrand = "all";
+      if (mBrand) {
+        var brand = safeDecode(mBrand[1]);
+        var known = chips.some(function (c) { return c.getAttribute("data-brand-filter") === brand; });
+        if (known) activeBrand = brand;
+      }
+      chips.forEach(function (c) {
+        c.classList.toggle("is-active", c.getAttribute("data-brand-filter") === activeBrand);
+      });
+      searchInput.value = mQuery ? safeDecode(mQuery[1]) : "";
+      searchHistoryActive = false;
+      applyFilter("none");
     }
 
     // восстановление состояния из URL при загрузке
@@ -172,23 +196,29 @@
       var mBrand = /[?&]brand=([^&]*)/.exec(window.location.search);
       var mQuery = /[?&]q=([^&]*)/.exec(window.location.search);
       if (mBrand) {
-        var brand = decodeURIComponent(mBrand[1]);
+        var brand = safeDecode(mBrand[1]);
         var known = chips.some(function (c) { return c.getAttribute("data-brand-filter") === brand; });
         if (known) {
           activeBrand = brand;
           chips.forEach(function (c) { c.classList.toggle("is-active", c.getAttribute("data-brand-filter") === brand); });
         }
       }
-      if (mQuery) searchInput.value = decodeURIComponent(mQuery[1]);
+      if (mQuery) searchInput.value = safeDecode(mQuery[1]);
     })();
 
-    searchInput.addEventListener("input", applyFilter);
+    searchInput.addEventListener("input", function () {
+      var mode = searchHistoryActive ? "replace" : "push";
+      searchHistoryActive = true;
+      applyFilter(mode);
+    });
+    searchInput.addEventListener("blur", function () { searchHistoryActive = false; });
 
     chips.forEach(function (chip) {
       chip.addEventListener("click", function () {
         activeBrand = chip.getAttribute("data-brand-filter") || "all";
+        searchHistoryActive = false;
         chips.forEach(function (c) { c.classList.toggle("is-active", c === chip); });
-        applyFilter();
+        applyFilter("push");
       });
     });
 
@@ -196,13 +226,15 @@
       resetBtn.addEventListener("click", function () {
         searchInput.value = "";
         activeBrand = "all";
+        searchHistoryActive = false;
         chips.forEach(function (c) { c.classList.toggle("is-active", c.getAttribute("data-brand-filter") === "all"); });
-        applyFilter();
+        applyFilter("push");
         searchInput.focus();
       });
     }
 
-    applyFilter();
+    window.addEventListener("popstate", restoreFromUrl);
+    applyFilter("replace");
   })();
   </script>
 

@@ -970,6 +970,8 @@
     padding: 2vh 1rem;
   }
   .printer-modal[hidden] { display: none !important; }
+  .printer-modal:focus,
+  .service-modal:focus { outline: none; }
   .printer-modal-backdrop {
     position: absolute;
     inset: 0;
@@ -1340,6 +1342,16 @@
     line-height: 1.55;
     margin: .5rem 0 1rem;
   }
+  .warranty-note {
+    margin: .7rem 0 1rem;
+    padding: .7rem .9rem;
+    border-radius: 12px;
+    background: rgba(220, 252, 231, .6);
+    border: 1px solid rgba(34, 197, 94, .22);
+    color: #166534;
+    font-size: .9rem;
+    line-height: 1.5;
+  }
   .detail-specs { width: 100%; border-collapse: collapse; }
   .detail-specs th {
     text-align: left;
@@ -1432,6 +1444,7 @@
   .cat-art .printer-svg { width: 112px; height: 72px; }
   .cat-model { margin: 0 1rem; font-weight: 600; font-size: .95rem; letter-spacing: -.2px; line-height: 1.3; }
   .cat-meta  { margin: .3rem 1rem 0; font-size: .78rem; color: var(--muted); }
+  .cat-aliases { margin: .22rem 1rem 0; font-size: .72rem; color: var(--muted); line-height: 1.35; }
   .cat-cartridge {
     margin: .35rem 1rem 0;
     font-size: .76rem;
@@ -2084,7 +2097,8 @@
   .analog-panel .service-brand-banner-head h3 { margin: 0; font-size: 1.05rem; }
   .analog-note { margin: .85rem 0 0; color: var(--muted); font-size: .86rem; line-height: 1.5; }
 
-  /* ── тизер брендов-аналогов на главной (задача 14.3) ── */
+  /* ── тизер брендов-аналогов на главной (задача 14.3): логотипы всех брендов
+        едут «паровозиком» справа налево, пауза — по наведению и фокусу ── */
   .analogs-teaser { margin-top: 1.25rem; margin-bottom: 1.25rem; }
   .analogs-teaser-card {
     display: flex;
@@ -2115,15 +2129,35 @@
   .analogs-teaser-text p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.5; }
   .analogs-teaser-text a { color: #15803d; font-weight: 700; text-decoration: none; }
   .analogs-teaser-text a:hover { text-decoration: underline; }
+  .analogs-teaser-marquee {
+    flex: 1 1 340px;
+    min-width: 0;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
+  }
+  .analogs-teaser-track {
+    display: flex;
+    width: max-content;
+    animation: analogs-teaser-ride 55s linear infinite;
+    will-change: transform;
+  }
+  .analogs-teaser-marquee:hover .analogs-teaser-track,
+  .analogs-teaser-marquee:focus-within .analogs-teaser-track { animation-play-state: paused; }
+  @keyframes analogs-teaser-ride {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
   .analogs-teaser-logos {
     list-style: none;
     display: flex;
-    flex-wrap: wrap;
+    flex: none;
     align-items: center;
-    gap: .55rem;
     margin: 0;
     padding: 0;
   }
+  /* зазор — правым отступом плитки, а не gap: тогда -50% ленты — ровно одна копия */
+  .analogs-teaser-logos li { margin-right: .55rem; }
   .analogs-teaser-logos a {
     display: inline-flex;
     align-items: center;
@@ -2137,6 +2171,11 @@
   }
   .analogs-teaser-logos img { height: 36px; max-width: 150px; width: auto; object-fit: contain; }
   .analogs-teaser-logos span { font-size: .78rem; font-weight: 700; color: var(--text); white-space: nowrap; }
+  /* без движения — прокрутка руками, склейка не нужна */
+  @media (prefers-reduced-motion: reduce) {
+    .analogs-teaser-marquee { overflow-x: auto; scrollbar-width: thin; }
+    .analogs-teaser-logos[aria-hidden="true"] { display: none; }
+  }
 
   /* ── отзывы клиентов (задача 6.3) ── */
   .reviews-grid {

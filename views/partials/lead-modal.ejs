@@ -1,6 +1,6 @@
 <%# Лид-форма: кнопки с атрибутом data-lead-open открывают модалку в любом месте сайта %>
 <div class="lead-modal" data-lead-modal hidden>
-  <div class="lead-modal-backdrop" data-lead-close></div>
+  <div class="lead-modal-backdrop" data-lead-close aria-hidden="true"></div>
   <div class="lead-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title">
     <button type="button" class="lead-modal-close" data-lead-close aria-label="Закрыть">×</button>
     <h3 id="lead-modal-title">Оставить заявку</h3>
@@ -28,13 +28,13 @@
         <textarea name="message" rows="3" maxlength="2000" placeholder="Например: HP LaserJet P1102, нужна заправка"></textarea>
       </label>
 
-      <p class="lead-error" data-lead-error hidden></p>
+      <p class="lead-error" data-lead-error role="alert" hidden></p>
 
       <button type="submit" class="btn lead-submit">Отправить заявку</button>
       <p class="lead-note">Нажимая кнопку, вы соглашаетесь на обработку персональных данных.</p>
     </form>
 
-    <div class="lead-success" data-lead-success hidden>
+    <div class="lead-success" data-lead-success role="status" aria-live="polite" tabindex="-1" hidden>
       <p class="lead-success-title">Заявка принята!</p>
       <p>Перезвоним в ближайшее рабочее время. Если нужно срочно — позвоните нам напрямую.</p>
       <% if (typeof contacts !== "undefined" && contacts && contacts.length) { %>
@@ -130,7 +130,7 @@
           if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Отправить заявку"; }
           if (res.ok && res.json && res.json.ok) {
             form.hidden = true;
-            if (success) success.hidden = false;
+            if (success) { success.hidden = false; success.focus(); }
           } else if (errorBox) {
             errorBox.textContent = (res.json && res.json.error) || "Не удалось отправить заявку. Попробуйте позвонить.";
             errorBox.hidden = false;

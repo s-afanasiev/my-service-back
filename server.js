@@ -22,6 +22,7 @@ const SITE_WORKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const SITE_WORK_HOURS = { opens: "09:00", closes: "18:00" };
 const SITE_WORK_LABEL = "Пн–Пт 9:00–18:00";
 const SITE_SERVICE_AREA = "Выезд по Курску и области";
+const SITE_WARRANTY_LABEL = String(process.env.SITE_WARRANTY_LABEL || "").trim();
 const CANONICAL_HOST = SITE_URL.replace(/^https?:\/\//i, "").toLowerCase();
 const ALIAS_HOSTS = new Set([
   "www." + CANONICAL_HOST,
@@ -420,13 +421,10 @@ async function initDB() {
     name           VARCHAR(255),
     color          VARCHAR(20)  NOT NULL DEFAULT 'black',
     cartridge_type VARCHAR(20)  NOT NULL DEFAULT 'toner',
+    aliases        TEXT[]       NOT NULL DEFAULT '{}',
+    resource_pages INTEGER,
+    analog_note    TEXT,
     UNIQUE (brand, model)
-  )`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS printer_cartridges (
-    printer_id   INT NOT NULL REFERENCES printers(id) ON DELETE CASCADE,
-    cartridge_id INT NOT NULL REFERENCES cartridges(id) ON DELETE CASCADE,
-    is_default   BOOLEAN NOT NULL DEFAULT false,
-    UNIQUE (printer_id, cartridge_id)
   )`);
   // Отзывы (задача 6.3): реальные отзывы клиентов, заполняются в админке
   await pool.query(`CREATE TABLE IF NOT EXISTS reviews (
@@ -470,6 +468,16 @@ async function initDB() {
     scan_resolution_dpi  VARCHAR(50),
     cartridge_note       VARCHAR(150)
   )`);
+  // Создаём связь только после printers: важно для чистой установки БД.
+  await pool.query(`CREATE TABLE IF NOT EXISTS printer_cartridges (
+    printer_id    INT NOT NULL REFERENCES printers(id) ON DELETE CASCADE,
+    cartridge_id  INT NOT NULL REFERENCES cartridges(id) ON DELETE CASCADE,
+    is_default    BOOLEAN NOT NULL DEFAULT false,
+    UNIQUE (printer_id, cartridge_id)
+  )`);
+  await pool.query("ALTER TABLE cartridges ADD COLUMN IF NOT EXISTS aliases TEXT[] NOT NULL DEFAULT '{}'");
+  await pool.query("ALTER TABLE cartridges ADD COLUMN IF NOT EXISTS resource_pages INTEGER");
+  await pool.query("ALTER TABLE cartridges ADD COLUMN IF NOT EXISTS analog_note TEXT");
   await pool.query(`ALTER TABLE printers ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT TRUE`);
   await pool.query(`ALTER TABLE printers ALTER COLUMN is_featured SET DEFAULT FALSE`);
   await pool.query(`ALTER TABLE printers ALTER COLUMN is_featured SET NOT NULL`);
@@ -494,33 +502,78 @@ async function initDB() {
   await ensureFeaturedSeed();
   await fillFeaturedDetails();
   await fillServiceDetails();
+  await cleanupLegacyCartridgeArtifacts();
   await seedCartridges();
 }
 
 // ── Картриджи: разбор cartridge_note и наполнение (задача 13.1) ─────────────
-function parseCartridgeNote(note) {
-  const STOP = new Set(["барабан", "барабаны", "и", "для", "plus", "with"]);
-  const tokens = String(note || "")
-    .replace(/[()]/g, " ")
-    .split(/[^A-Za-zА-Яа-я0-9\-]+/)
-    .map(t => t.trim())
-    .filter(t => t && !STOP.has(t.toLowerCase()));
-  const seen = new Set();
-  const out = [];
-  tokens.forEach(t => {
-    const model = t.toUpperCase();
-    if (seen.has(model)) return;
-    seen.add(model);
-    out.push({ model, isDrum: /^DR-?\d/i.test(t) });
+const CARTRIDGE_CODE_ALIASES = {
+  canon: {
+    "CRT-052": "052",
+    "CART-303": "703",
+    "CART-712": "712",
+    "3484B002": "725",
+  },
+  hp: {
+    "CE285A": "85A",
+    "W1106A": "106A",
+    "W1107A": "107A",
+    "CF230A": "30A",
+    "CF226A": "26A",
+    "W1500A": "150A",
+  },
+};
+
+function parseCartridgeNote(note, brand) {
+  const brandAliases = CARTRIDGE_CODE_ALIASES[normName(brand)] || {};
+  const tokens = String(note || "").toUpperCase().match(/[A-Z0-9]+(?:-[A-Z0-9]+)*/g) || [];
+  const groups = new Map();
+
+  tokens.forEach(token => {
+    // Accept consumable codes only. Numeric-only codes need at least 3 digits;
+    // prose ("чернила", "комплект", "заправка") and quantities ("4 цвета") are ignored.
+    if (!/^[A-Z0-9-]+$/.test(token) || !/\d/.test(token)) return;
+    if (/^\d+$/.test(token) && token.length < 3) return;
+
+    const model = brandAliases[token] || token;
+    let group = groups.get(model);
+    if (!group) {
+      group = { model, aliases: [], isDrum: /^DR-?\d/i.test(model) };
+      groups.set(model, group);
+    }
+    if (token !== model && !group.aliases.includes(token)) group.aliases.push(token);
   });
-  return out;
+
+  return Array.from(groups.values());
 }
 
-function cartridgeTypeLabel(t) {
+function parseCartridgeAliases(value, model) {
+  const primary = String(model || "").trim().toUpperCase();
+  return Array.from(new Set(String(value || "")
+    .split(/[,;\n]+/)
+    .map(s => s.trim().toUpperCase())
+    .filter(s => s && s !== primary && /^[A-Z0-9-]+$/.test(s) && /\d/.test(s))));
+}
+
+function cartridgeTypeLabel(t, color) {
+  if (color === "set" && t === "drum") return "комплект барабанов";
+  if (color === "set" && t === "ink") return "набор чернил";
+  if (color === "set" && t === "toner") return "комплект цветных тонеров";
   if (t === "drum") return "барабан (drum-юнит)";
   if (t === "ink") return "чернильный картридж";
   if (t === "waste") return "бункер отработки";
   return "тонер-картридж";
+}
+
+function cartridgeColorLabel(color) {
+  return ({
+    black: "чёрный",
+    cyan: "голубой (cyan)",
+    magenta: "пурпурный (magenta)",
+    yellow: "жёлтый",
+    "tri-color": "трёхцветный",
+    set: "цветной набор",
+  })[color] || "цвет не указан";
 }
 
 function cartridgeSlug(brand, model) {
@@ -534,11 +587,84 @@ function mapCartridge(row) {
     model:         row.model,
     name:          row.name || (row.brand + " " + row.model),
     color:         row.color,
+    colorLabel:    cartridgeColorLabel(row.color),
     cartridgeType: row.cartridge_type,
-    typeLabel:     cartridgeTypeLabel(row.cartridge_type),
+    typeLabel:     cartridgeTypeLabel(row.cartridge_type, row.color),
+    aliases:       Array.isArray(row.aliases) ? row.aliases : [],
+    resourcePages: row.resource_pages == null ? null : Number(row.resource_pages),
+    analogNote:    row.analog_note || "",
     slug:          cartridgeSlug(row.brand, row.model),
     printersCount: row.printers_count != null ? Number(row.printers_count) : undefined,
   };
+}
+
+async function cleanupLegacyCartridgeArtifacts() {
+  // Exact rows produced by the former broad tokenizer from descriptive words.
+  // This allowlist does not touch arbitrary/manual cartridge records.
+  const artifacts = [
+    ["Canon", "GI-СЕРИИ"], ["Canon", "ЧЕРНИЛА"], ["Epson", "ЧЕРНИЛА"],
+    ["HP", "КОМПЛЕКТ"], ["HP", "РЕЗЕРВУАР"],
+    ["Samsung", "4"], ["Samsung", "БУНКЕРА"], ["Samsung", "ЗАПРАВКА"],
+    ["Samsung", "ТОНЕР-ТУБА"], ["Samsung", "ЦВЕТА"],
+  ];
+  for (const [brand, model] of artifacts) {
+    await pool.query("DELETE FROM cartridges WHERE brand = $1 AND model = $2", [brand, model]);
+  }
+}
+
+async function mergeLegacyCartridgeAliases() {
+  const aliasRows = Object.keys(CARTRIDGE_CODE_ALIASES).flatMap(brandKey =>
+    Object.keys(CARTRIDGE_CODE_ALIASES[brandKey]).map(alias => ({
+      brandKey,
+      alias,
+      canonical: CARTRIDGE_CODE_ALIASES[brandKey][alias],
+    }))
+  );
+
+  for (const item of aliasRows) {
+    const { rows: brandRows } = await pool.query(
+      "SELECT DISTINCT brand FROM cartridges WHERE lower(brand) = $1 LIMIT 1",
+      [item.brandKey]
+    );
+    if (!brandRows.length) continue;
+    const brand = brandRows[0].brand;
+    const { rows: oldRows } = await pool.query(
+      "SELECT id, aliases FROM cartridges WHERE brand = $1 AND model = $2",
+      [brand, item.alias]
+    );
+    if (!oldRows.length) continue;
+
+    const { rows: canonicalRows } = await pool.query(
+      "SELECT id FROM cartridges WHERE brand = $1 AND model = $2",
+      [brand, item.canonical]
+    );
+    if (!canonicalRows.length) {
+      await pool.query(
+        `UPDATE cartridges SET model = $1, aliases = ARRAY(
+           SELECT DISTINCT x FROM unnest(aliases || $2::text[]) AS u(x)
+         ) WHERE id = $3`,
+        [item.canonical, [item.alias], oldRows[0].id]
+      );
+      continue;
+    }
+
+    const oldId = oldRows[0].id;
+    const canonicalId = canonicalRows[0].id;
+    await pool.query(
+      `UPDATE cartridges SET aliases = ARRAY(
+         SELECT DISTINCT x FROM unnest(aliases || $1::text[]) AS u(x)
+       ) WHERE id = $2`,
+      [[item.alias].concat(oldRows[0].aliases || []), canonicalId]
+    );
+    await pool.query(
+      `INSERT INTO printer_cartridges (printer_id, cartridge_id, is_default)
+       SELECT printer_id, $1, is_default FROM printer_cartridges WHERE cartridge_id = $2
+       ON CONFLICT (printer_id, cartridge_id) DO UPDATE
+         SET is_default = printer_cartridges.is_default OR EXCLUDED.is_default`,
+      [canonicalId, oldId]
+    );
+    await pool.query("DELETE FROM cartridges WHERE id = $1", [oldId]);
+  }
 }
 
 async function seedCartridges() {
@@ -546,25 +672,27 @@ async function seedCartridges() {
     "SELECT id, brand, model, cartridge_note, print_technology, color_mode FROM printers"
   );
   for (const p of printers) {
-    const tokens = parseCartridgeNote(p.cartridge_note);
+    const tokens = parseCartridgeNote(p.cartridge_note, p.brand);
     for (let i = 0; i < tokens.length; i++) {
       const t = tokens[i];
       const type = t.isDrum ? "drum" : (p.print_technology === "inkjet" ? "ink" : "toner");
-      let { rows } = await pool.query(
-        "SELECT id FROM cartridges WHERE brand = $1 AND model = $2",
-        [p.brand, t.model]
+      const color = p.color_mode === "color" ? "set" : "black";
+      const { rows } = await pool.query(
+        `INSERT INTO cartridges (brand, model, name, color, cartridge_type, aliases)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (brand, model) DO UPDATE SET
+           aliases = (
+             SELECT COALESCE(array_agg(DISTINCT x), '{}'::text[])
+             FROM unnest(cartridges.aliases || EXCLUDED.aliases) AS u(x)
+           ),
+           color = CASE
+             WHEN cartridges.color = 'black' AND EXCLUDED.color = 'set' THEN 'set'
+             ELSE cartridges.color
+           END
+         RETURNING id`,
+        [p.brand, t.model, p.brand + " " + t.model, color, type, t.aliases]
       );
-      let cartId;
-      if (!rows.length) {
-        const ins = await pool.query(
-          `INSERT INTO cartridges (brand, model, name, color, cartridge_type)
-           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-          [p.brand, t.model, p.brand + " " + t.model, "black", type]
-        );
-        cartId = ins.rows[0].id;
-      } else {
-        cartId = rows[0].id;
-      }
+      const cartId = rows[0].id;
       await pool.query(
         `INSERT INTO printer_cartridges (printer_id, cartridge_id, is_default)
          VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
@@ -572,6 +700,7 @@ async function seedCartridges() {
       );
     }
   }
+  await mergeLegacyCartridgeAliases();
 }
 
 // ── Вспомогательные функции ───────────────────────────────────────────────────
@@ -588,8 +717,8 @@ function textColorFor(hex) {
             + 0.0722 * chan(parseInt(c.slice(4, 6), 16));
   const ratioWith = (fgLum) =>
     (Math.max(lum, fgLum) + 0.05) / (Math.min(lum, fgLum) + 0.05);
-  // белый текст против тёмного #1e293b — берём вариант с большим контрастом
-  return ratioWith(1) >= ratioWith(0.0247) ? "#ffffff" : "#1e293b";
+  // Выбираем лучший из чёрного и белого: для любого sRGB-фона максимум не ниже 4.58:1.
+  return ratioWith(1) >= ratioWith(0) ? "#ffffff" : "#000000";
 }
 
 function timingSafeEq(a, b) {
@@ -1337,6 +1466,7 @@ function publicLocals(data, extra) {
     cityIn:     SITE_CITY_IN,
     serviceArea: SITE_SERVICE_AREA,
     workLabel:  SITE_WORK_LABEL,
+    warrantyLabel: SITE_WARRANTY_LABEL,
     telephone:  data.seo.telephone,
     email:      data.seo.email,
     contacts:   data.contacts,
@@ -1350,6 +1480,7 @@ app.get("/", async (req, res) => {
     const data = await loadPublicLists();
     const pageUrl = absUrl("/");
     const business = localBusinessLd(data.contacts);
+    const analogService = data.services.find(s => s.kind === "compatible");
     res.render("main", publicLocals(data, {
       title:       HOME_TITLE,
       description: HOME_DESC,
@@ -1364,7 +1495,11 @@ app.get("/", async (req, res) => {
         ],
       }),
       services: data.services,
-      featured: data.featured,
+      featured: data.featured.map(p => ({
+        ...p,
+        analogUrl: analogService ? "/uslugi/" + analogService.slug + "#brands" : "",
+        analogLabel: analogService ? "Аналоги — от " + analogService.priceFormatted + " →" : "",
+      })),
       models: data.models,
       reviews: data.reviews,
     }));
@@ -1713,6 +1848,7 @@ app.get("/modeli/:slug", async (req, res) => {
 app.get("/kartridzhi", async (req, res) => {
   try {
     const data = await loadPublicLists();
+    const refillService = data.services.find(s => s.kind === "refill");
     const { rows } = await pool.query(
       `SELECT c.*, COUNT(pc.printer_id)::int AS printers_count
          FROM cartridges c
@@ -1738,6 +1874,7 @@ app.get("/kartridzhi", async (req, res) => {
       heading: "Каталог картриджей",
       pageUrl,
       groups,
+      refillService,
       jsonLd: ldString({
         "@context": "https://schema.org",
         "@graph": [
@@ -1767,7 +1904,9 @@ app.get("/kartridzhi/:slug", async (req, res) => {
          LEFT JOIN printer_cartridges pc ON pc.cartridge_id = c.id
         GROUP BY c.id`
     );
-    const cartridge = rows.map(mapCartridge).find(c => c.slug === req.params.slug);
+    const cartridges = rows.map(mapCartridge);
+    const cartridge = cartridges.find(c => c.slug === req.params.slug
+      || c.aliases.some(alias => cartridgeSlug(c.brand, alias) === req.params.slug));
     if (!cartridge) {
       return res.status(404).render("not-found", publicLocals(data, {
         title: "Страница не найдена",
@@ -1775,6 +1914,9 @@ app.get("/kartridzhi/:slug", async (req, res) => {
         heading: "Картридж не найден",
         pageUrl: absUrl(req.path),
       }));
+    }
+    if (cartridge.slug !== req.params.slug) {
+      return res.redirect(301, "/kartridzhi/" + cartridge.slug);
     }
     const { rows: prRows } = await pool.query(
       `SELECT p.* FROM printers p
@@ -1858,7 +2000,14 @@ function notifyLead(lead) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, text: text }),
-  }).catch(err => console.error("[lead] telegram notify:", err.message));
+  })
+    .then(async response => {
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        console.error("[lead] Telegram notification failed:", response.status, payload.description || "unknown response");
+      }
+    })
+    .catch(err => console.error("[lead] Telegram notification failed:", err.message));
 }
 
 app.post("/api/lead", async (req, res) => {
@@ -1953,6 +2102,7 @@ async function loadPrinterApi() {
       pageUrl:      "/modeli/" + p.slug,
       cartridges:   cartsByPrinter.get(p.id) || [],
       analogUrl:    analogService ? "/uslugi/" + analogService.slug + "#brands" : "",
+      analogLabel:  analogService ? "Аналоги — от " + analogService.priceFormatted + " →" : "",
       refill:       refillService
         ? { slug: refillService.slug, priceFormatted: refillService.priceFormatted }
         : null,
@@ -2002,11 +2152,16 @@ async function loadCartridgesWithCounts() {
   return rows.map(mapCartridge);
 }
 
+function findCartridgeSlug(cartridges, slug) {
+  return cartridges.find(c => c.slug === slug
+    || c.aliases.some(alias => cartridgeSlug(c.brand, alias) === slug));
+}
+
 // Детали картриджа в форме модалки принтера (для листания в каталоге /kartridzhi)
 app.get("/api/kartridzhi/:slug", async (req, res) => {
   try {
     const carts = await loadCartridgesWithCounts();
-    const c = carts.find(x => x.slug === req.params.slug);
+    const c = findCartridgeSlug(carts, req.params.slug);
     if (!c) return res.status(404).json({ error: "Картридж не найден" });
     const data = await loadPublicLists();
     const refillService = data.services.find(s => s.kind === "refill");
@@ -2020,8 +2175,11 @@ app.get("/api/kartridzhi/:slug", async (req, res) => {
         + (analogService ? " Вместо оригинала можно взять аналог — он дешевле." : ""),
       specRows: [
         { label: "Тип", value: c.typeLabel },
-        { label: "Цвет", value: c.color === "black" ? "чёрный" : c.color },
+        { label: "Цвет", value: c.colorLabel },
         { label: "Совместимых моделей", value: String(n) },
+        ...(c.aliases.length ? [{ label: "Другие обозначения", value: c.aliases.join(", ") }] : []),
+        ...(c.resourcePages ? [{ label: "Ресурс", value: c.resourcePages + " страниц" }] : []),
+        ...(c.analogNote ? [{ label: "Аналог", value: c.analogNote }] : []),
       ],
       refill: refillService
         ? { slug: refillService.slug, priceFormatted: refillService.priceFormatted }
@@ -2041,19 +2199,22 @@ app.get("/api/search", async (req, res) => {
     const q = String(req.query.q || "").trim().toLowerCase().replace(/ё/g, "е");
     if (q.length < 2) return res.json({ items: [] });
     const norm = s => String(s || "").toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9]+/g, "");
-    const nq = norm(q);
+    const tokens = q.split(/[^a-zа-я0-9]+/).filter(Boolean).map(norm).filter(Boolean);
+    if (!tokens.length) return res.json({ items: [] });
+    const matches = value => {
+      const hay = norm(value);
+      return tokens.every(token => hay.indexOf(token) !== -1);
+    };
     const items = [];
 
     const cache = await loadPrinterApi();
     cache.list.forEach(p => {
-      const hay = norm(p.brand + " " + p.model + " " + p.cartridgeNote + " " + p.meta);
-      if (hay.indexOf(nq) !== -1) {
+      if (matches(p.brand + " " + p.model + " " + p.cartridgeNote + " " + p.meta)) {
         items.push({ type: "Модель", title: p.brand + " " + p.model, sub: p.meta, url: "/modeli/" + p.slug });
       }
     });
     (await loadCartridgesWithCounts()).forEach(c => {
-      const hay = norm(c.brand + " " + c.model + " " + c.typeLabel);
-      if (hay.indexOf(nq) !== -1) {
+      if (matches(c.brand + " " + c.model + " " + c.aliases.join(" ") + " " + c.typeLabel)) {
         items.push({
           type: "Картридж",
           title: c.brand + " " + c.model,
@@ -2064,8 +2225,7 @@ app.get("/api/search", async (req, res) => {
     });
     const data = await loadPublicLists();
     data.services.forEach(s => {
-      const hay = norm(s.name);
-      if (hay.indexOf(nq) !== -1) {
+      if (matches(s.name)) {
         items.push({ type: "Услуга", title: s.name, sub: s.priceFormatted, url: "/uslugi/" + s.slug });
       }
     });
@@ -2113,16 +2273,27 @@ if (!adminPass) {
         "SELECT * FROM leads ORDER BY created_at DESC LIMIT 200"
       );
       const cartridges = await loadCartridgesWithCounts();
+      const { rows: cartridgeLinks } = await pool.query(
+        "SELECT cartridge_id, printer_id FROM printer_cartridges ORDER BY printer_id"
+      );
+      const printerIdsByCartridge = new Map();
+      cartridgeLinks.forEach(link => {
+        if (!printerIdsByCartridge.has(link.cartridge_id)) printerIdsByCartridge.set(link.cartridge_id, []);
+        printerIdsByCartridge.get(link.cartridge_id).push(Number(link.printer_id));
+      });
+      cartridges.forEach(c => { c.printerIds = printerIdsByCartridge.get(c.id) || []; });
       const { rows: reviews } = await pool.query(
         "SELECT * FROM reviews ORDER BY created_at DESC"
       );
       const hasHero = fs.existsSync(heroPath);
+      const catalogModels = catalog.map(mapFeatured);
       res.render("admin", {
         services: services.map(mapService),
         contacts,
         hasHero,
         featured: featured.map(mapFeatured),
-        catalog: catalog.map(mapFeatured),
+        catalog: catalogModels,
+        printerCatalog: catalogModels,
         featuredMax: FEATURED_MAX,
         leads,
         cartridges,
@@ -2152,12 +2323,42 @@ if (!adminPass) {
     try {
       const type = ["toner", "ink", "drum", "waste"].includes(req.body.cartridge_type)
         ? req.body.cartridge_type : "toner";
-      const color = ["black", "cyan", "magenta", "yellow", "tri-color"].includes(req.body.color)
+      const color = ["black", "cyan", "magenta", "yellow", "tri-color", "set"].includes(req.body.color)
         ? req.body.color : "black";
+      const aliases = parseCartridgeAliases(req.body.aliases, req.body.model);
+      const resourcePages = Math.max(0, Math.min(1000000, parseInt(req.body.resource_pages, 10) || 0)) || null;
+      const analogNote = String(req.body.analog_note || "").trim().slice(0, 1000) || null;
       await pool.query(
-        "UPDATE cartridges SET cartridge_type = $1, color = $2, name = COALESCE(NULLIF($3, ''), name) WHERE id = $4",
-        [type, color, String(req.body.name || "").trim().slice(0, 255), req.params.id]
+        `UPDATE cartridges
+            SET cartridge_type = $1, color = $2, name = COALESCE(NULLIF($3, ''), name),
+                aliases = $4, resource_pages = $5, analog_note = $6
+          WHERE id = $7`,
+        [type, color, String(req.body.name || "").trim().slice(0, 255), aliases, resourcePages, analogNote, req.params.id]
       );
+
+      const rawIds = Array.isArray(req.body.printer_ids)
+        ? req.body.printer_ids : (req.body.printer_ids ? [req.body.printer_ids] : []);
+      const wantedIds = Array.from(new Set(rawIds.map(v => parseInt(v, 10)).filter(Number.isInteger)));
+      const { rows: validRows } = await pool.query(
+        "SELECT id FROM printers WHERE id = ANY($1::int[])",
+        [wantedIds]
+      );
+      const validIds = validRows.map(r => Number(r.id));
+      if (validIds.length) {
+        await pool.query(
+          "DELETE FROM printer_cartridges WHERE cartridge_id = $1 AND NOT (printer_id = ANY($2::int[]))",
+          [req.params.id, validIds]
+        );
+        for (const printerId of validIds) {
+          await pool.query(
+            `INSERT INTO printer_cartridges (printer_id, cartridge_id, is_default)
+             VALUES ($1, $2, false) ON CONFLICT (printer_id, cartridge_id) DO NOTHING`,
+            [printerId, req.params.id]
+          );
+        }
+      } else {
+        await pool.query("DELETE FROM printer_cartridges WHERE cartridge_id = $1", [req.params.id]);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -2170,13 +2371,16 @@ if (!adminPass) {
       const model = String(req.body.model || "").trim().toUpperCase().slice(0, 100);
       const type = ["toner", "ink", "drum", "waste"].includes(req.body.cartridge_type)
         ? req.body.cartridge_type : "toner";
-      const color = ["black", "cyan", "magenta", "yellow", "tri-color"].includes(req.body.color)
+      const color = ["black", "cyan", "magenta", "yellow", "tri-color", "set"].includes(req.body.color)
         ? req.body.color : "black";
+      const aliases = parseCartridgeAliases(req.body.aliases, model);
+      const resourcePages = Math.max(0, Math.min(1000000, parseInt(req.body.resource_pages, 10) || 0)) || null;
+      const analogNote = String(req.body.analog_note || "").trim().slice(0, 1000) || null;
       if (brand && model) {
         await pool.query(
-          `INSERT INTO cartridges (brand, model, name, color, cartridge_type)
-           VALUES ($1, $2, $3, $4, $5) ON CONFLICT (brand, model) DO NOTHING`,
-          [brand, model, brand + " " + model, color, type]
+          `INSERT INTO cartridges (brand, model, name, color, cartridge_type, aliases, resource_pages, analog_note)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (brand, model) DO NOTHING`,
+          [brand, model, brand + " " + model, color, type, aliases, resourcePages, analogNote]
         );
       }
     } catch (err) {

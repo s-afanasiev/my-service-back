@@ -1,12 +1,12 @@
 <%# Общая модалка принтера (docs/ui-carousel-modal.md).
     Переиспользуется в карусели главной (partials/featured-printers.ejs) и каталоге /modeli.
     Управление и заполнение — partials/printer-modal-js.ejs (window.PrinterModal). %>
-<div class="printer-modal" data-printer-modal hidden>
-  <div class="printer-modal-backdrop" data-modal-close></div>
+<div class="printer-modal" data-printer-modal role="dialog" aria-modal="true" aria-labelledby="printer-modal-title" tabindex="-1" hidden>
+  <div class="printer-modal-backdrop" data-modal-close aria-hidden="true"></div>
   <button type="button" class="printer-modal-nav is-prev" data-modal-dir="-1" aria-label="Предыдущий принтер">
     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 4 7 12l8 8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
-  <div class="printer-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="printer-modal-title">
+  <div class="printer-modal-dialog">
     <button type="button" class="printer-modal-close" data-modal-close aria-label="Закрыть">×</button>
     <div class="printer-modal-photo" data-modal-photo></div>
     <p class="printer-modal-brand" data-modal-brand></p>
@@ -17,7 +17,7 @@
     </div>
     <div class="printer-modal-specs-block">
       <h4>Характеристики</h4>
-      <div class="printer-modal-specs-scroll" data-modal-scroll>
+      <div class="printer-modal-specs-scroll" data-modal-scroll tabindex="0" aria-label="Прокручиваемые характеристики">
         <table class="printer-modal-table">
           <tbody data-modal-specs></tbody>
         </table>

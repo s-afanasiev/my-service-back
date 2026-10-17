@@ -110,20 +110,23 @@
 <div class="card" id="cartridges">
   <h2>Картриджи <span class="muted">каталог /kartridzhi</span></h2>
   <p class="hint">
-    Картриджи создаются автоматически из поля «Картридж» моделей — здесь можно поправить тип, цвет и название.
-    Удалённый картридж вернётся при перезапуске, если он указан в карточке модели.
+    Распознанные коды создаются из поля «Картридж» моделей. Здесь можно исправить данные и вручную связать расходник с моделями.
+    Текстовые описания без кода (например, «чернила GI-серии») автоматически не превращаются в выдуманные модели.
   </p>
   <% if (!cartridges || cartridges.length === 0) { %>
     <p class="empty">Картриджей пока нет.</p>
   <% } else { %>
     <table>
-      <thead><tr><th>Бренд</th><th>Модель</th><th>Название</th><th>Тип</th><th>Цвет</th><th>Моделей</th><th></th></tr></thead>
+      <thead><tr><th>Бренд</th><th>Модель</th><th>Название</th><th>Другие коды</th><th>Ресурс</th><th>Аналог / примечание</th><th>Тип</th><th>Цвет</th><th>Связанные модели</th><th></th></tr></thead>
       <tbody>
         <% cartridges.forEach(function(c) { %>
           <tr>
             <td><%= c.brand %></td>
             <td class="file-name"><%= c.model %></td>
             <td><input form="cart-<%= c.id %>" name="name" value="<%= c.name %>" style="width:100%;min-width:8rem" /></td>
+            <td><input form="cart-<%= c.id %>" name="aliases" value="<%= c.aliases.join(', ') %>" placeholder="CE285A" style="width:100%;min-width:8rem" /></td>
+            <td><input form="cart-<%= c.id %>" name="resource_pages" type="number" min="0" value="<%= c.resourcePages || '' %>" style="width:6rem" /></td>
+            <td><input form="cart-<%= c.id %>" name="analog_note" value="<%= c.analogNote %>" style="width:100%;min-width:10rem" /></td>
             <td>
               <select form="cart-<%= c.id %>" name="cartridge_type">
                 <option value="toner" <%= c.cartridgeType === "toner" ? "selected" : "" %>>тонер</option>
@@ -139,9 +142,19 @@
                 <option value="magenta" <%= c.color === "magenta" ? "selected" : "" %>>magenta</option>
                 <option value="yellow" <%= c.color === "yellow" ? "selected" : "" %>>yellow</option>
                 <option value="tri-color" <%= c.color === "tri-color" ? "selected" : "" %>>tri-color</option>
+                <option value="set" <%= c.color === "set" ? "selected" : "" %>>цветной набор</option>
               </select>
             </td>
-            <td><%= c.printersCount || 0 %></td>
+            <td>
+              <details>
+                <summary>Выбрать (<%= c.printersCount || 0 %>)</summary>
+                <select form="cart-<%= c.id %>" name="printer_ids" multiple size="6" style="min-width:14rem;max-width:18rem">
+                  <% printerCatalog.forEach(function(p) { %>
+                    <option value="<%= p.id %>" <%= (c.printerIds || []).indexOf(p.id) !== -1 ? "selected" : "" %>><%= p.brand %> <%= p.model %></option>
+                  <% }); %>
+                </select>
+              </details>
+            </td>
             <td style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
               <button class="btn-toggle" type="submit" form="cart-<%= c.id %>">Сохранить</button>
               <form class="inline" method="POST" action="/admin/cartridges/<%= c.id %>/delete">
@@ -153,7 +166,9 @@
       </tbody>
     </table>
     <% cartridges.forEach(function(c) { %>
-      <form id="cart-<%= c.id %>" method="POST" action="/admin/cartridges/<%= c.id %>/update" hidden></form>
+      <form id="cart-<%= c.id %>" method="POST" action="/admin/cartridges/<%= c.id %>/update" hidden>
+        <input type="hidden" name="model" value="<%= c.model %>" />
+      </form>
     <% }); %>
   <% } %>
 
@@ -175,8 +190,12 @@
         <option value="magenta">magenta</option>
         <option value="yellow">yellow</option>
         <option value="tri-color">tri-color</option>
+        <option value="set">цветной набор</option>
       </select>
     </label>
+    <label>Другие коды<input name="aliases" placeholder="CE285A" /></label>
+    <label>Ресурс (стр.)<input name="resource_pages" type="number" min="0" placeholder="1500" /></label>
+    <label>Аналог / примечание<input name="analog_note" placeholder="Совместимый код или комментарий" /></label>
     <button class="btn-add" type="submit">Добавить картридж</button>
   </form>
 </div>

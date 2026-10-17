@@ -18,7 +18,7 @@
         <% if (typeof cartridges !== "undefined" && cartridges && cartridges.length) { %>
           <% cartridges.forEach(function(c) { %>
             <a class="detail-price detail-price-link" href="/kartridzhi/<%= c.slug %>">
-              Картридж: <%= c.model %><%= c.typeLabel !== "тонер-картридж" ? " — " + c.typeLabel : "" %> →
+              Картридж: <%= c.model %><%= c.aliases.length ? " (" + c.aliases.join(", ") + ")" : "" %><%= c.typeLabel.indexOf("тонер") === -1 ? " — " + c.typeLabel : "" %> →
             </a>
           <% }); %>
         <% } else if (printer.cartridge_note) { %>
@@ -31,7 +31,7 @@
         <% } %>
         <% if (typeof analogService !== "undefined" && analogService) { %>
           <a class="detail-price detail-analog-link" href="/uslugi/<%= analogService.slug %>#brands">
-            Аналог дешевле — совместимые картриджи →
+            Аналоги — от <%= analogService.priceFormatted %> →
           </a>
         <% } %>
       </div>
@@ -50,6 +50,9 @@
       </div>
       <% if (printer.description) { %>
         <p class="detail-desc"><%= printer.description %></p>
+      <% } %>
+      <% if (warrantyLabel) { %>
+        <p class="warranty-note"><strong>Гарантия:</strong> <%= warrantyLabel %></p>
       <% } %>
       <% if (printer.specRows && printer.specRows.length) { %>
         <table class="detail-specs">
