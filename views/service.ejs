@@ -34,19 +34,31 @@
           <section class="brand-block analog-block" id="brands" aria-label="Бренды картриджей-аналогов">
             <h2><%= service.panel.title || "Бренды-аналоги" %></h2>
             <div class="analog-tabs" data-analog-tabs>
-              <div class="analog-chips" role="tablist" aria-label="Бренды картриджей-аналогов">
-                <% service.panel.items.forEach(function(item, i) { %>
-                  <button type="button"
-                          class="service-brand-chip analog-chip<%= item.theme ? " is-" + item.theme : "" %>"
-                          role="tab"
-                          id="analog-tab-<%= item.id %>"
-                          aria-controls="analog-panel-<%= item.id %>"
-                          aria-selected="<%= i === 0 ? "true" : "false" %>"
-                          data-analog-tab="<%= item.id %>">
-                    <% if (item.logo) { %><img src="<%= item.logo %>" alt="" loading="lazy" /><% } %>
-                    <span><%= item.label %></span>
-                  </button>
-                <% }); %>
+              <%# Лента чипсов + стрелки по краям: сдвиг — половина видимой ширины,
+                  округлённая вверх до границы целого бренда, но не больше всей ширины ленты %>
+              <div class="analog-chips-row">
+                <button type="button" class="analog-chips-nav is-prev" data-analog-scroll="-1"
+                        aria-controls="analog-chips" aria-label="Показать предыдущие бренды">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 4 7 12l8 8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <div class="analog-chips" id="analog-chips" role="tablist" aria-label="Бренды картриджей-аналогов" data-analog-chips>
+                  <% service.panel.items.forEach(function(item, i) { %>
+                    <button type="button"
+                            class="service-brand-chip analog-chip<%= item.theme ? " is-" + item.theme : "" %>"
+                            role="tab"
+                            id="analog-tab-<%= item.id %>"
+                            aria-controls="analog-panel-<%= item.id %>"
+                            aria-selected="<%= i === 0 ? "true" : "false" %>"
+                            data-analog-tab="<%= item.id %>">
+                      <% if (item.logo) { %><img src="<%= item.logo %>" alt="" loading="lazy" /><% } %>
+                      <span><%= item.label %></span>
+                    </button>
+                  <% }); %>
+                </div>
+                <button type="button" class="analog-chips-nav is-next" data-analog-scroll="1"
+                        aria-controls="analog-chips" aria-label="Показать следующие бренды">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 5 7 7-7 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
               </div>
               <% service.panel.items.forEach(function(item, i) { %>
                 <div class="service-brand-banner analog-panel<%= item.theme ? " is-" + item.theme : "" %>"
@@ -71,6 +83,48 @@
             if (!root) return;
             var tabs = [].slice.call(root.querySelectorAll("[data-analog-tab]"));
             var panels = [].slice.call(root.querySelectorAll("[data-analog-panel]"));
+            var box = root.querySelector("[data-analog-chips]");
+            var navBtns = [].slice.call(root.querySelectorAll("[data-analog-scroll]"));
+            var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            function updateNav() {
+              if (!box || !navBtns.length) return;
+              var max = box.scrollWidth - box.clientWidth;
+              var row = navBtns[0].parentNode;
+              if (max <= 1) { row.classList.add("is-static"); return; }
+              row.classList.remove("is-static");
+              navBtns[0].disabled = box.scrollLeft <= 1;
+              navBtns[1].disabled = box.scrollLeft >= max - 1;
+            }
+            // Сдвиг — половина видимой ширины ленты, округлённая вверх до границы
+            // целого бренда: если на половине бренд обрезан, добавляется его
+            // ширина. Двигаются целые бренды (2–4 в зависимости от экрана), но
+            // не больше всей видимой ширины ленты за нажатие.
+            function pageBrands(dir) {
+              if (!box) return;
+              var behavior = reduceMotion ? "auto" : "smooth";
+              var boxLeft = box.getBoundingClientRect().left;
+              var offs = tabs.map(function (t) {
+                return box.scrollLeft + (t.getBoundingClientRect().left - boxLeft);
+              });
+              var half = box.clientWidth / 2;
+              var target;
+              if (dir > 0) {
+                var edge = box.scrollLeft + half;
+                target = offs[offs.length - 1];
+                for (var i = 0; i < offs.length; i++) {
+                  if (offs[i] >= edge) { target = offs[i]; break; }
+                }
+                target = Math.min(target, box.scrollLeft + box.clientWidth);
+              } else {
+                var edgeBack = box.scrollLeft - half;
+                target = 0;
+                for (var j = 0; j < offs.length; j++) {
+                  if (offs[j] <= edgeBack) target = offs[j]; else break;
+                }
+                target = Math.max(target, box.scrollLeft - box.clientWidth);
+              }
+              box.scrollTo({ left: Math.max(0, target), behavior: behavior });
+            }
             function select(id) {
               tabs.forEach(function (t) {
                 t.setAttribute("aria-selected", t.getAttribute("data-analog-tab") === id ? "true" : "false");
@@ -92,6 +146,21 @@
                 select(next.getAttribute("data-analog-tab"));
               });
             });
+            navBtns.forEach(function (btn) {
+              btn.addEventListener("click", function () {
+                pageBrands(Number(btn.getAttribute("data-analog-scroll")) || 1);
+              });
+            });
+            if (box) {
+              box.addEventListener("scroll", updateNav, { passive: true });
+              // Ширина чипсов меняется, когда подгружаются логотипы, — обновляем стрелки.
+              [].slice.call(box.querySelectorAll("img")).forEach(function (img) {
+                if (!img.complete) img.addEventListener("load", updateNav, { once: true });
+              });
+              window.addEventListener("load", updateNav);
+              window.addEventListener("resize", updateNav);
+              updateNav();
+            }
           })();
           </script>
         <% } else { %>

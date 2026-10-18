@@ -2088,6 +2088,44 @@
     -webkit-overflow-scrolling: touch;
   }
   .analog-chips::-webkit-scrollbar { display: none; }
+  /* стрелки листания ленты брендов: одно нажатие — половина видимой ширины,
+     округлённая вверх до границы целого бренда, но не больше всей ширины ленты */
+  .analog-chips-row {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+  }
+  .analog-chips-row .analog-chips { flex: 1 1 auto; min-width: 0; }
+  .analog-chips-nav {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(76, 110, 245, .18);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--primary);
+    box-shadow: 0 6px 20px rgba(43, 56, 128, .14);
+    cursor: pointer;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .analog-chips-nav:hover:not(:disabled) {
+    border-color: var(--primary);
+    box-shadow: 0 10px 26px rgba(60, 80, 190, .2);
+  }
+  .analog-chips-nav:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .analog-chips-nav:disabled { opacity: .35; cursor: default; box-shadow: none; }
+  .analog-chips-nav svg { display: block; }
+  .analog-chips-row.is-static .analog-chips-nav { display: none; }
+  @media (max-width: 640px) {
+    .analog-chips-nav { width: 36px; height: 36px; }
+  }
+  /* переход с главной на #brands: не даём липкой шапке закрыть заголовок и ленту */
+  #brands { scroll-margin-top: 72px; }
+  @media (max-width: 640px) {
+    #brands { scroll-margin-top: 162px; }
+  }
   .analog-chip[aria-selected="true"] {
     border-color: var(--primary);
     box-shadow: 0 6px 18px rgba(76, 110, 245, .22);
