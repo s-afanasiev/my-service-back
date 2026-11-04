@@ -1,0 +1,17 @@
+{
+  "root": "C:/CODE/MY_SERVICES/my-service-back/tmp_cartridge_images",
+  "items": [
+    {"slug": "canon_crt_725", "urls": [
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/441a9a92ebee.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/6e94bf4fbcf6.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/ea0512114c4b.jpg"]},
+    {"slug": "canon_crt_737", "urls": [
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/58ec018eceb6.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/f56d30fe4bb3.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/5bc26602d1cc.jpg"]},
+    {"slug": "hp_ce285a", "urls": [
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/1b6d33c9faad.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/ca0cbf71f3c4.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/e8ab69cbcf4c.jpg"]}
+  ]
+}

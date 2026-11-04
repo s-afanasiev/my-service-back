@@ -1,0 +1,33 @@
+{
+  "root": "C:/CODE/MY_SERVICES/my-service-back/tmp_service_images",
+  "items": [
+    {"slug": "zamena_korpusa", "urls": [
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/967882dfb4bf.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/0b65f28befba.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/57fc2a238491.png"]},
+    {"slug": "zapravka_lazernogo_kartridzha", "urls": [
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/5a5574f1c7a8.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/d8ed76f4a986.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/cdc83902bd32.jpg"]},
+    {"slug": "zapravka_struynogo_kartridzha", "urls": [
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/7915a7879989.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/ae14db3db88b.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/74ee06622b9a.jpg"]},
+    {"slug": "proshivka_apparata_pod_zapravku", "urls": [
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/21e9d3903da5.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/0b23c433b605.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/9029cb3245fc.jpg"]},
+    {"slug": "sbros_schetchika_chernil_epson", "urls": [
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/8e8291401214.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/1c5c6aa1fa19.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/052315adba30.jpg"]},
+    {"slug": "vosstanovlenie_kartridzha", "urls": [
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/a2961df1bc62.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/3823f418c995.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/29240167fb88.jpg"]},
+    {"slug": "zamena_termoplenki_pechki", "urls": [
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/f205cdde6c50.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/79d3af1ff053.jpg",
+      "https://image-search-mcp-cn-beijing.oss-cn-beijing.aliyuncs.com/image-search-mcp/images-ppt/ec447be447d7.jpg"]}
+  ]
+}

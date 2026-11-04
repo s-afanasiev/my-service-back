@@ -22,3 +22,16 @@
 Наблюдения по MCP image_search: 2026-10-18 сервер лежал ~3 ч (internal_error),
 после ожил; `rank=true` дестабилизирует чаще — рабочий режим `rank=false`.
 Английские запросы (`Canon 052 toner cartridge`) находят то, чего нет в RU-выдаче.
+
+## Добор 2026-10-18 (вторая сессия): услуги + новые картриджи
+
+Сделано: +8 услуг в БД (ids 13–20, prices/descriptions в add_services.js), notes 135a (106A/W1106A вместо 106A/107A) и LBP6030 (737/CRT-737 вместо 725) исправлены, неверные связи printer_cartridges удалены. printers-catalog.csv: +5 моделей из БД (61 всего). cartridges-catalog.csv: +CE285A(85A), CRT-725, CRT-737 (48 всего).
+
+ОСТАЛОСЬ: докачать 10 фото (7 услуг + 3 картриджа) — image_search выполнен, URL лежат в queue_new.json (root tmp_service_images) и queue_cart.json (root tmp_cartridge_images). OSS-прокси лежал с ~15:00 до 17:10+ (000/таймауты и в curl, и в node).
+
+Возобновление, когда OSS поднимется:
+1. node tmp_cartridge_images/batch_grab.js tmp_cartridge_images/queue_new.json   (услуги)
+2. node tmp_cartridge_images/batch_grab.js tmp_cartridge_images/queue_cart.json  (картриджи)
+3. View montage.jpg каждого slug → выбор: услуги в tmp_service_images/choices.txt (slug:cN), картриджи в tmp_cartridge_images/choices.txt
+4. node tmp_service_images/process_new.js && node tmp_cartridge_images/process_cartridges.js canon_crt_725 canon_crt_737 hp_ce285a
+5. Кандидаты: fotobaraban.jpg→zamena_fotobarabana.jpg и rolik_zahvata.jpg→zamena_rolika_zahvata.jpg уже переименованы — это фото услуг #13/#14.
