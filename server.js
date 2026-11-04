@@ -2195,18 +2195,30 @@ app.get("/api/kartridzhi/:slug", async (req, res) => {
     const data = await loadPublicLists();
     const refillService = data.services.find(s => s.kind === "refill");
     const analogService = data.services.find(s => s.kind === "compatible");
-    const n = c.printersCount || 0;
+    const { rows: prRows } = await pool.query(
+      `SELECT p.brand, p.model FROM printers p
+         JOIN printer_cartridges pc ON pc.printer_id = p.id
+        WHERE pc.cartridge_id = $1 AND p.is_active = true
+        ORDER BY p.sort_order, p.id`,
+      [c.id]
+    );
+    const printerNames = prRows.map(p => p.brand + " " + p.model);
+    const description = printerNames.length === 0
+      ? "Картридж " + c.brand + " " + c.model + ". Совместимую модель подберём по телефону."
+      : printerNames.length === 1
+        ? "Картридж " + c.brand + " " + c.model + " подходит для принтера " + printerNames[0] + "."
+        : "Картридж " + c.brand + " " + c.model + " подходит для принтеров: "
+          + printerNames.join(", ") + ".";
     res.json({
       brand: c.brand,
       model: c.model,
       imageUrl: c.imageUrl || "",
-      description: c.typeLabel + " " + c.brand + ". Подходит к " + n + " "
-        + (n === 1 ? "модели" : "моделям") + " принтеров и МФУ."
-        + (analogService ? " Вместо оригинала можно взять аналог — он дешевле." : ""),
+      description,
+      printers: printerNames,
       specRows: [
         { label: "Тип", value: c.typeLabel },
         { label: "Цвет", value: c.colorLabel },
-        { label: "Совместимых моделей", value: String(n) },
+        { label: "Совместимых моделей", value: String(c.printersCount || printerNames.length) },
         ...(c.aliases.length ? [{ label: "Другие обозначения", value: c.aliases.join(", ") }] : []),
         ...(c.resourcePages ? [{ label: "Ресурс", value: c.resourcePages + " страниц" }] : []),
         ...(c.analogNote ? [{ label: "Аналог", value: c.analogNote }] : []),

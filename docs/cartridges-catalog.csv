@@ -6,8 +6,8 @@ W1100A;HP;;mono;reservoir;hp-neverstop-laser-1000w;
 W1105A;HP;;mono;reservoir;hp-neverstop-laser-1000w;hp_w1105a.jpg
 CF230A;HP;30A;mono;toner;hp-laserjet-pro-mfp-m227fdw;hp_cf230a.jpg
 W1500A;HP;150A;mono;toner;hp-laserjet-pro-3003dw;hp_w1500a.jpg
-CRT-052H;Canon;052H;mono;toner;canon-i-sensys-mf446x;canon_crt_052h.jpg
-CRT-052;Canon;052;mono;toner;canon-i-sensys-mf445dw,canon-i-sensys-lbp122dw;canon_crt_052.jpg
+CRT-052H;Canon;052H;mono;toner;canon-i-sensys-mf446x,canon-i-sensys-mf445dw,canon-i-sensys-lbp122dw;canon_crt_052h.jpg
+CRT-052;Canon;052;mono;toner;canon-i-sensys-mf445dw,canon-i-sensys-lbp122dw,canon-i-sensys-mf446x;canon_crt_052.jpg
 CART-303;Canon;703,C-703;mono;toner;canon-i-sensys-lbp2900;canon_cart_303.jpg
 CART-712;Canon;712,C-712;mono;toner;canon-i-sensys-mf4410;canon_cart_712.jpg
 GI-41;Canon;GI-41PGBK,GI-41C,GI-41M,GI-41Y,GI-51;color;ink;canon-pixma-g3430;canon_gi_41.jpg
