@@ -1,6 +1,6 @@
 cartridge;brand;aliases;color;type;printers;image_file
 CF226A;HP;26A;mono;toner;hp-laserjet-pro-mfp-m428dw;hp_cf226a.jpg
-W1106A;HP;106A;mono;toner;hp-laserjet-mfp-m141w,hp-laser-108w,hp-laserjet-m111w;hp_w1106a.jpg
+W1106A;HP;106A;mono;toner;hp-laserjet-mfp-m141w,hp-laser-108w,hp-laserjet-m111w,hp-laserjet-pro-mfp-135a;hp_w1106a.jpg
 W1107A;HP;107A;mono;toner;hp-laserjet-mfp-m141w,hp-laserjet-m211dw;hp_w1107a.jpg
 W1100A;HP;;mono;reservoir;hp-neverstop-laser-1000w;
 W1105A;HP;;mono;reservoir;hp-neverstop-laser-1000w;hp_w1105a.jpg
@@ -14,7 +14,7 @@ GI-41;Canon;GI-41PGBK,GI-41C,GI-41M,GI-41Y,GI-51;color;ink;canon-pixma-g3430;can
 PC-211EV;Pantum;PC-211;mono;toner;pantum-p2200,pantum-p2207,pantum-m6500,pantum-m6506nw,pantum-m6550nw,pantum-p2506w;pantum_pc_211ev.jpg
 TL-5120;Pantum;;mono;toner;pantum-bm5100adn,pantum-bm5220adw;pantum_tl_5120.jpg
 TL-5120H;Pantum;;mono;toner;pantum-bm5100adn,pantum-bm5220adw;pantum_tl_5120h.jpg
-MLT-D111S;Samsung;;mono;toner;samsung-xpress-m2020;samsung_mlt_d111s.jpg
+MLT-D111S;Samsung;;mono;toner;samsung-xpress-m2020,samsung-xpress-m2070;samsung_mlt_d111s.jpg
 MLT-D116S;Samsung;;mono;toner;samsung-sl-m2875fd;samsung_mlt_d116s.jpg
 MLT-D101S;Samsung;;mono;toner;samsung-ml-2160,samsung-scx-3400;samsung_mlt_d101s.jpg
 SCX-D4200A;Samsung;;mono;tube;samsung-scx-4200;samsung_scx_d4200a.jpg
@@ -43,7 +43,7 @@ THM247;Катюша;THM-247;mono;toner;katyusha-p247ep;katyusha_thm247.jpg
 103;Epson;103-BK,103-C,103-M,103-Y;color;ink;epson-ecotank-l3250,epson-ecotank-l3210,epson-ecotank-l3550;epson_103.jpg
 T664;Epson;T6641,T6642,T6643,T6644;color;ink;epson-l210;epson_t664.jpg
 T108;Deli;;mono;toner;deli-m1820w;deli_t108.jpg
-Q2612A;HP;12A,CS-Q2612AS;mono;toner;cactus-cs-lp1120b;hp_q2612a.jpg
+Q2612A;Cactus;12A,CS-Q2612AS;mono;toner;cactus-cs-lp1120b;cactus_q2612a.jpg
 CE285A;HP;85A;mono;toner;hp-laserjet-p1102;hp_ce285a.jpg
 CRT-725;Canon;725,CRG-725,3484B002;mono;toner;canon-i-sensys-mf3010;canon_crt_725.jpg
 CRT-737;Canon;737,CRG-737,9435B002;mono;toner;canon-i-sensys-lbp6030;canon_crt_737.jpg

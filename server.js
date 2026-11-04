@@ -37,6 +37,7 @@ const featuredDir        = path.join(__dirname, "public", "featured");
 const servicesUploadDir  = path.join(__dirname, "public", "service-photos");
 const assetsPrintersDir  = path.join(__dirname, "assets", "printers");
 const assetsServicesDir  = path.join(__dirname, "assets", "services");
+const assetsCartridgesDir = path.join(__dirname, "assets", "cartridges");
 const IMAGE_EXT    = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif" };
 const IMAGE_EXTS   = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
 const DEVICE_TYPES = new Set(["printer", "mfp"]);
@@ -499,6 +500,7 @@ async function initDB() {
   fs.mkdirSync(servicesUploadDir, { recursive: true });
   fs.mkdirSync(assetsPrintersDir, { recursive: true });
   fs.mkdirSync(assetsServicesDir, { recursive: true });
+  fs.mkdirSync(assetsCartridgesDir, { recursive: true });
   await ensureFeaturedSeed();
   await fillFeaturedDetails();
   await fillServiceDetails();
@@ -507,21 +509,31 @@ async function initDB() {
 }
 
 // ── Картриджи: разбор cartridge_note и наполнение (задача 13.1) ─────────────
+// Каноническое имя картриджа — OEM-код (как в docs/cartridges-catalog.csv),
+// маркетинговые имена и региональные артикулы — алиасы.
 const CARTRIDGE_CODE_ALIASES = {
   canon: {
-    "CRT-052": "052",
-    "CART-303": "703",
-    "CART-712": "712",
-    "3484B002": "725",
+    "052": "CRT-052",
+    "703": "CART-303",
+    "712": "CART-712",
+    "725": "CRT-725",
+    "737": "CRT-737",
+    "3484B002": "CRT-725",
   },
   hp: {
-    "CE285A": "85A",
-    "W1106A": "106A",
-    "W1107A": "107A",
-    "CF230A": "30A",
-    "CF226A": "26A",
-    "W1500A": "150A",
+    "85A": "CE285A",
+    "106A": "W1106A",
+    "107A": "W1107A",
+    "30A": "CF230A",
+    "26A": "CF226A",
+    "150A": "W1500A",
   },
+  cactus: {
+    "12A": "Q2612A",
+    "CS-Q2612AS": "Q2612A",
+  },
+  katyusha: { "C-TK133": "TK-133" },
+  "катюша": { "C-TK133": "TK-133" },
 };
 
 function parseCartridgeNote(note, brand) {
@@ -581,6 +593,7 @@ function cartridgeSlug(brand, model) {
 }
 
 function mapCartridge(row) {
+  const image = resolveCartridgeImage(row);
   return {
     id:            row.id,
     brand:         row.brand,
@@ -593,7 +606,10 @@ function mapCartridge(row) {
     aliases:       Array.isArray(row.aliases) ? row.aliases : [],
     resourcePages: row.resource_pages == null ? null : Number(row.resource_pages),
     analogNote:    row.analog_note || "",
-    slug:          cartridgeSlug(row.brand, row.model),
+    slug:          image.slug,
+    imageUrl:      image.url,
+    imageSource:   image.source,
+    imageFile:     image.file,
     printersCount: row.printers_count != null ? Number(row.printers_count) : undefined,
   };
 }
@@ -861,15 +877,15 @@ function firstExisting(dir, stem) {
   return "";
 }
 
-function findAssetFile(slug) {
-  const hyphen = firstExisting(assetsPrintersDir, slug);
+function findAssetInDir(dir, slug) {
+  const hyphen = firstExisting(dir, slug);
   if (hyphen) return hyphen;
-  const underscore = firstExisting(assetsPrintersDir, slug.replace(/-/g, "_"));
+  const underscore = firstExisting(dir, slug.replace(/-/g, "_"));
   if (underscore) return underscore;
 
   const want = slug.replace(/-/g, "");
   let files = [];
-  try { files = fs.readdirSync(assetsPrintersDir); } catch (err) { return ""; }
+  try { files = fs.readdirSync(dir); } catch (err) { return ""; }
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     const ext = path.extname(file).toLowerCase();
@@ -878,6 +894,19 @@ function findAssetFile(slug) {
     if (stem === want) return file;
   }
   return "";
+}
+
+function findAssetFile(slug) {
+  return findAssetInDir(assetsPrintersDir, slug);
+}
+
+function resolveCartridgeImage(row) {
+  const slug = cartridgeSlug(row.brand, row.model);
+  const file = findAssetInDir(assetsCartridgesDir, slug);
+  if (file) {
+    return { url: "/assets/cartridges/" + file, source: "asset", slug, file };
+  }
+  return { url: "", source: "", slug, file: slug.replace(/-/g, "_") + ".jpg" };
 }
 
 function resolveFeaturedImage(row) {
@@ -2170,6 +2199,7 @@ app.get("/api/kartridzhi/:slug", async (req, res) => {
     res.json({
       brand: c.brand,
       model: c.model,
+      imageUrl: c.imageUrl || "",
       description: c.typeLabel + " " + c.brand + ". Подходит к " + n + " "
         + (n === 1 ? "модели" : "моделям") + " принтеров и МФУ."
         + (analogService ? " Вместо оригинала можно взять аналог — он дешевле." : ""),

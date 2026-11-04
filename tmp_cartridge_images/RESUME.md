@@ -35,3 +35,17 @@
 3. View montage.jpg каждого slug → выбор: услуги в tmp_service_images/choices.txt (slug:cN), картриджи в tmp_cartridge_images/choices.txt
 4. node tmp_service_images/process_new.js && node tmp_cartridge_images/process_cartridges.js canon_crt_725 canon_crt_737 hp_ce285a
 5. Кандидаты: fotobaraban.jpg→zamena_fotobarabana.jpg и rolik_zahvata.jpg→zamena_rolika_zahvata.jpg уже переименованы — это фото услуг #13/#14.
+
+## Интеграция каталога картриджей в БД/сайт (2026-11-04, третья сессия)
+
+Сделано:
+- server.js: resolveCartridgeImage (assets/cartridges, фолбэки как у принтеров), mapCartridge с imageUrl/imageSource/imageFile, /api/kartridzhi/:slug отдаёт imageUrl; CARTRIDGE_CODE_ALIASES перевёрнут (канон = OEM-код: 26A→CF226A, 052→CRT-052, + блоки cactus/катюша; ключ «катюша» нужен в кириллице — normName не транслитерирует).
+- views/cartridges.ejs (фото в карточке, фолбэк cart-chip), views/cartridge.ejs (detail-photo).
+- import_cartridges_csv.js — идемпотентный импорт CSV→cartridges/printer_cartridges (слияние по бренду+модели/алиасам, связи = список printers из CSV, is_default = первый картридж принтера в файле, удаление строк вне каталога). ВНИМАНИЕ: --dry не отменяет INSERT/UPDATE (пишет и в dry) — чинить при следующем использовании.
+- sync_printers_csv.js — cartridge_note/description принтеров из CSV → БД (61).
+- CSV: W1106A +135a, MLT-D111S +M2070, Q2612A бренд → Cactus (файл cactus_q2612a.jpg).
+- БД локально: 48 картриджей = CSV, 71 связь, 61 is_default, seed при старте не создаёт дублей (проверено двумя рестартами).
+
+Деплой на VDS: git pull, затем НА СЕРВЕРЕ: node tmp_cartridge_images/sync_printers_csv.js && node tmp_cartridge_images/import_cartridges_csv.js && перезапуск node (скрипты берут пароль из .env, host/user/db = localhost/mysite_user/mysite — сверить с серверным .env). Без этого на VDS останутся старые 36 картриджей и 12 услуг (8 услуг из add_services.js тоже только в локальной БД!).
+
+Без фото остаются: 5 старых SKU + CRT-725/CRT-737/CE285A (докачка по queue_cart.json, когда OSS оживёт) — страницы у них отрисовывают фолбэк cart-chip.

@@ -29,6 +29,13 @@
           </a>
         <% } %>
       </div>
+      <div class="detail-photo">
+        <% if (cartridge.imageUrl) { %>
+          <img src="<%= cartridge.imageUrl %>" alt="<%= cartridge.brand %> <%= cartridge.model %>" width="600" height="600" />
+        <% } else { %>
+          <span class="cart-chip"><%= cartridge.model %></span>
+        <% } %>
+      </div>
 
       <% if (typeof analogService !== "undefined" && analogService) { %>
         <section class="analog-note-box" aria-label="Оригинал или аналог">
